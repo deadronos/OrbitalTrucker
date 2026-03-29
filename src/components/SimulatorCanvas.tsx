@@ -1,19 +1,10 @@
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useMemo, useRef } from 'react'
-import {
-  ACESFilmicToneMapping,
-  Color,
-  Line,
-  Mesh,
-  SRGBColorSpace,
-  Vector3,
-} from 'three'
+import { Canvas, useFrame } from '@react-three/fiber'
+import { useEffect, useRef } from 'react'
+import { ACESFilmicToneMapping, Color, Line, Mesh, SRGBColorSpace } from 'three'
 
-import { useAutoOrient } from '../hooks/useAutoOrient'
+import { useAutonomousGuidance } from '../hooks/useAutonomousGuidance'
 import { useBodyPositions } from '../hooks/useBodyPositions'
 import { useCameraFollow } from '../hooks/useCameraFollow'
-import { useKeyboardInput } from '../hooks/useKeyboardInput'
-import { usePointerInput } from '../hooks/usePointerInput'
 import { useShipPhysics } from '../hooks/useShipPhysics'
 import { useSimulationMetrics } from '../hooks/useSimulationMetrics'
 import { useTimeSimulation } from '../hooks/useTimeSimulation'
@@ -23,22 +14,15 @@ import { SolarBodies } from '../scene/SolarBodies'
 import { SunMesh } from '../scene/SunMesh'
 import { TargetMarker } from '../scene/TargetMarker'
 import { TrajectoryLine } from '../scene/TrajectoryLine'
-import { planTransfer } from '../simulation/transfer-planner'
+import { createIdleShipControls } from '../simulation/physics'
 import { type SimulationMetrics } from '../simulation/types'
 import { SUN } from '../solar-data'
-import {
-  createEphemerisSolarBodyResolver,
-  getLocationById,
-  getLocationMarkerScaleAu,
-  resolveLocationPosition,
-} from '../world/locations'
+import { getLocationById, getLocationMarkerScaleAu } from '../world/locations'
 
 export type SimulatorCanvasProps = {
   selectedLocationId: string
   timeWarpIndex: number
   timePaused: boolean
-  /** Increment this value to trigger an immediate orient-to-target rotation. */
-  autoOrientTrigger: number
   onMetricsChange: (metrics: SimulationMetrics) => void
 }
 
@@ -46,16 +30,11 @@ function SceneContents({
   selectedLocationId,
   timePaused,
   timeWarpIndex,
-  autoOrientTrigger,
   onMetricsChange,
 }: SimulatorCanvasProps) {
-  const { gl } = useThree()
-
-  // Input hooks
-  const keyStateRef = useKeyboardInput()
+  const controlInputRef = useRef(createIdleShipControls())
   const { shipStateRef, shipRef, forwardRef, upRef } =
-    useShipPhysics(keyStateRef)
-  usePointerInput(gl.domElement, shipStateRef)
+    useShipPhysics(controlInputRef)
 
   // Simulation hooks (registered in frame-execution order)
   const { simulatedDateRef, orbitEpoch } = useTimeSimulation(
@@ -69,10 +48,6 @@ function SceneContents({
   const targetMarkerRef = useRef<Mesh>(null)
   const trajectoryLineRef = useRef<Line>(null)
   const selectedLocationIdRef = useRef(selectedLocationId)
-  const fallbackSolarBodyResolver = useMemo(
-    () => createEphemerisSolarBodyResolver(),
-    [],
-  )
 
   useEffect(() => {
     selectedLocationIdRef.current = selectedLocationId
@@ -83,47 +58,21 @@ function SceneContents({
   // already-advanced simulated date each frame.
   const { bodyMeshRefs, bodyPositionsRef } = useBodyPositions(simulatedDateRef)
 
-  // Auto-orient hook — rotates the ship to face the target on demand.
-  useAutoOrient(
-    autoOrientTrigger,
+  const { plannerResultRef } = useAutonomousGuidance({
+    controlInputRef,
     selectedLocationIdRef,
     shipStateRef,
-    forwardRef,
     bodyPositionsRef,
     simulatedDateRef,
-  )
+  })
 
   // Per-frame: drive target marker, trajectory line, and metrics.
-  // Fires after the hook frames (time → ship → camera → body positions)
-  // because hooks are registered before this subscription in mount order.
+  // Fires after the simulation hooks (time → guidance → ship → camera → body)
+  // because those hooks use lower frame priorities.
   useFrame((state, delta) => {
     const realDelta = Math.min(delta, 0.05)
-    const date = simulatedDateRef.current
-
-    const selectedLocationId = selectedLocationIdRef.current
-    const selectedLocation = getLocationById(selectedLocationId)
-    const resolveSelectedLocationPosition = (
-      locationId: string,
-      resolveDate: Date,
-    ) =>
-      resolveLocationPosition(locationId, {
-        date: resolveDate,
-        resolveSolarBodyPosition: (bodyName, bodyDate) =>
-          resolveSolarBodyPosition(
-            bodyName,
-            bodyDate,
-            bodyPositionsRef.current,
-            fallbackSolarBodyResolver,
-          ),
-      })
-    const plan = planTransfer({
-      date,
-      shipPosition: shipStateRef.current.position,
-      shipVelocity: shipStateRef.current.velocity,
-      shipForward: forwardRef.current,
-      destinationId: selectedLocationId,
-      resolveDestinationPosition: resolveSelectedLocationPosition,
-    })
+    const plan = plannerResultRef.current
+    const selectedLocation = getLocationById(plan.destinationId)
 
     targetMarkerRef.current?.position.copy(plan.destination.currentPosition)
     targetMarkerRef.current?.lookAt(state.camera.position)
@@ -150,7 +99,13 @@ function SceneContents({
       line.geometry.computeBoundingSphere()
     }
 
-    report(realDelta, date, shipState.position, shipState.velocity, plan)
+    report(
+      realDelta,
+      simulatedDateRef.current,
+      shipState.position,
+      shipState.velocity,
+      plan,
+    )
   })
 
   return (
@@ -191,16 +146,3 @@ export function SimulatorCanvas(props: SimulatorCanvasProps) {
 
 // Default export enables React.lazy(() => import('./SimulatorCanvas')) in App.tsx.
 export default SimulatorCanvas
-
-function resolveSolarBodyPosition(
-  bodyName: string,
-  date: Date,
-  bodyPositions: Map<string, Vector3>,
-  fallbackResolver: ReturnType<typeof createEphemerisSolarBodyResolver>,
-): Vector3 {
-  if (bodyName === SUN.name) {
-    return new Vector3(0, 0, 0)
-  }
-
-  return bodyPositions.get(bodyName) ?? fallbackResolver(bodyName, date)
-}

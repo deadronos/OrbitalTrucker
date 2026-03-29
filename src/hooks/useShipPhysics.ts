@@ -1,10 +1,12 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Group, Quaternion, Vector3 } from 'three'
 
 import {
+  createIdleShipControls,
   createInitialShipState,
   stepShipPhysics,
+  type ShipControlInput,
   type ShipState,
 } from '../simulation/physics'
 
@@ -18,13 +20,13 @@ export type ShipPhysicsRefs = {
 }
 
 /**
- * Manages ship physics each frame. Reads key state, calls `stepShipPhysics`,
- * and updates the ship mesh position and rotation.
+ * Manages ship physics each frame. Reads the current command input, calls
+ * `stepShipPhysics`, and updates the ship mesh position and rotation.
  *
  * Returns refs that the camera hook and scene orchestrator can read.
  */
 export function useShipPhysics(
-  keyStateRef: React.RefObject<Set<string>>,
+  controlInputRef: React.RefObject<ShipControlInput>,
 ): ShipPhysicsRefs {
   const shipStateRef = useRef<ShipState>(createInitialShipState())
   const shipRef = useRef<Group>(null)
@@ -37,7 +39,7 @@ export function useShipPhysics(
     const realDelta = Math.min(delta, 0.05)
     const result = stepShipPhysics(
       shipStateRef.current,
-      keyStateRef.current,
+      controlInputRef.current ?? createIdleShipControls(),
       realDelta,
     )
 
@@ -48,18 +50,7 @@ export function useShipPhysics(
 
     shipRef.current?.setRotationFromQuaternion(result.quaternion)
     shipRef.current?.position.copy(shipStateRef.current.position)
-  })
-
-  // Toggle rotation assist when F is pressed (edge-detected via keydown).
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.code === 'KeyF') {
-        shipStateRef.current.rotationAssist = !shipStateRef.current.rotationAssist
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, -1)
 
   return {
     shipStateRef,

@@ -11,7 +11,6 @@ describe('ControlPanel', () => {
     render(
       <ControlPanel
         destinations={getLocationCatalog()}
-        onOrientToTarget={vi.fn()}
         onSelectLocation={onSelectLocation}
         selectedLocationId="earth"
       />,
@@ -25,20 +24,18 @@ describe('ControlPanel', () => {
     expect(screen.getByText('Earth')).toBeInTheDocument()
   })
 
-  it('calls onOrientToTarget when the orient button is clicked', () => {
-    const onOrientToTarget = vi.fn()
-
+  it('describes autonomous route control instead of manual piloting hints', () => {
     render(
       <ControlPanel
         destinations={getLocationCatalog()}
-        onOrientToTarget={onOrientToTarget}
         onSelectLocation={vi.fn()}
         selectedLocationId="earth"
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Orient to target' }))
-
-    expect(onOrientToTarget).toHaveBeenCalledOnce()
+    expect(screen.getByText('Flight computer engaged')).toBeInTheDocument()
+    expect(
+      screen.getByText('Destination changes reroute live'),
+    ).toBeInTheDocument()
   })
 })
