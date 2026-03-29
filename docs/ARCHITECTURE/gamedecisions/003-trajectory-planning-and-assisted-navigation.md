@@ -1,6 +1,6 @@
 # ADR 003: Introduce trajectory planning and assisted navigation
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR 005](./005-shift-to-autonomous-space-trucking.md)
 - **Date:** 2026-03-29
 
 ## Context
