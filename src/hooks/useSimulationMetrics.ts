@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { Vector3 } from 'three'
 
 import { ASTRONOMICAL_UNIT_KM } from '../solar-data'
+import type { AutonomousGuidanceResult } from '../simulation/autonomous-guidance'
 import type { TransferPlannerResult } from '../simulation/transfer-planner'
 import type { SimulationMetrics } from '../simulation/types'
 
@@ -18,6 +19,7 @@ export function useSimulationMetrics(
     shipPosition: Vector3,
     velocity: Vector3,
     plannerResult: TransferPlannerResult,
+    guidanceResult: AutonomousGuidanceResult,
   ) => void
 } {
   const accumulatorRef = useRef(0)
@@ -34,6 +36,7 @@ export function useSimulationMetrics(
       shipPosition: Vector3,
       velocity: Vector3,
       plannerResult: TransferPlannerResult,
+      guidanceResult: AutonomousGuidanceResult,
     ) => {
       accumulatorRef.current += deltaSec
 
@@ -46,8 +49,12 @@ export function useSimulationMetrics(
           currentTargetDistanceAu: plannerResult.travel.currentDistanceAu,
           plannedDistanceAu: plannerResult.travel.plannedDistanceAu,
           plannerStatus: plannerResult.status,
+          autonomousPhase: guidanceResult.phase,
           targetBearingDeg: plannerResult.guidance.bearingAngleDeg,
           etaDays: plannerResult.travel.etaDays,
+          interceptTimeSeconds: plannerResult.travel.interceptTimeSeconds,
+          targetMotionDuringInterceptAu:
+            plannerResult.travel.targetMotionDuringInterceptAu,
         })
       }
     },

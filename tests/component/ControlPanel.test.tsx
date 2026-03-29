@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { ControlPanel } from '../../src/components/ControlPanel'
+import { INITIAL_METRICS } from '../../src/simulation/types'
 import { getLocationCatalog } from '../../src/world/locations'
 
 describe('ControlPanel', () => {
@@ -11,12 +12,18 @@ describe('ControlPanel', () => {
     render(
       <ControlPanel
         destinations={getLocationCatalog()}
+        metrics={{
+          ...INITIAL_METRICS,
+          autonomousPhase: 'cruising',
+          plannerStatus: 'future-intercept',
+        }}
         onSelectLocation={onSelectLocation}
         selectedLocationId="earth"
+        timeWarpDaysPerSecond={0.25}
       />,
     )
 
-    fireEvent.change(screen.getByLabelText('Destination'), {
+    fireEvent.change(screen.getByLabelText('Current destination'), {
       target: { value: 'mars-high-port' },
     })
 
@@ -28,14 +35,19 @@ describe('ControlPanel', () => {
     render(
       <ControlPanel
         destinations={getLocationCatalog()}
+        metrics={{
+          ...INITIAL_METRICS,
+          autonomousPhase: 'acquiring',
+          plannerStatus: 'future-intercept',
+        }}
         onSelectLocation={vi.fn()}
         selectedLocationId="earth"
+        timeWarpDaysPerSecond={0.25}
       />,
     )
 
-    expect(screen.getByText('Flight computer engaged')).toBeInTheDocument()
-    expect(
-      screen.getByText('Destination changes reroute live'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Destination-driven bridge')).toBeInTheDocument()
+    expect(screen.getByText('Autonomy: Acquiring course')).toBeInTheDocument()
+    expect(screen.getByText('Planner: Future intercept')).toBeInTheDocument()
   })
 })
