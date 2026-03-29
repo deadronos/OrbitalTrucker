@@ -1,11 +1,17 @@
+import type { TransferPlannerStatus } from './transfer-planner'
+
 export type SimulationMetrics = {
   simulatedDate: Date
   shipSpeedKmPerSecond: number
   heliocentricDistanceAu: number
-  targetDistanceAu: number
-  /** Angle in degrees between the ship's forward heading and the target (0–180). */
+  /** Straight-line distance to the destination's current resolved position. */
+  currentTargetDistanceAu: number
+  /** Distance to the planner's current aim point. */
+  plannedDistanceAu: number
+  plannerStatus: TransferPlannerStatus
+  /** Angle in degrees between the ship's forward heading and the planner aim point. */
   targetBearingDeg: number
-  /** Estimated straight-line travel time in days at current speed. Null when stationary. */
+  /** Estimated travel time in days to the planner's current aim point. */
   etaDays: number | null
 }
 
@@ -17,7 +23,9 @@ export const INITIAL_METRICS: SimulationMetrics = {
   simulatedDate: new Date(INITIAL_SIMULATED_DATE),
   shipSpeedKmPerSecond: 0,
   heliocentricDistanceAu: 1.04,
-  targetDistanceAu: 0,
+  currentTargetDistanceAu: 0,
+  plannedDistanceAu: 0,
+  plannerStatus: 'current-position',
   targetBearingDeg: 0,
   etaDays: null,
 }

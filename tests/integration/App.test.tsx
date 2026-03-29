@@ -15,7 +15,12 @@ function StubScene({
       simulatedDate: new Date('2026-03-29T12:00:00.000Z'),
       shipSpeedKmPerSecond: 42.4,
       heliocentricDistanceAu: 1.04,
-      targetDistanceAu: selectedLocationId === 'pluto' ? 34.95 : 2.03,
+      currentTargetDistanceAu: selectedLocationId === 'pluto' ? 34.95 : 2.03,
+      plannedDistanceAu: selectedLocationId === 'pluto' ? 36.4 : 2.08,
+      plannerStatus:
+        selectedLocationId === 'pluto'
+          ? 'future-intercept'
+          : 'current-position',
       targetBearingDeg: 45,
       etaDays: selectedLocationId === 'pluto' ? 365 : null,
     })
@@ -33,10 +38,13 @@ describe('AppShell', () => {
     expect(screen.getByTestId('stub-scene')).toBeInTheDocument()
     expect(screen.getByText('42.4 km/s')).toBeInTheDocument()
     expect(screen.getByText('2.03 AU')).toBeInTheDocument()
+    expect(screen.getByText('2.08 AU')).toBeInTheDocument()
 
     await user.selectOptions(screen.getByLabelText('Destination'), 'pluto')
 
     expect(screen.getByText('34.95 AU')).toBeInTheDocument()
+    expect(screen.getByText('36.40 AU')).toBeInTheDocument()
+    expect(screen.getByText('Future intercept')).toBeInTheDocument()
     expect(screen.getByTestId('destination-select')).toHaveValue('pluto')
   })
 })

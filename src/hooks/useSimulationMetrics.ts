@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { Vector3 } from 'three'
 
 import { ASTRONOMICAL_UNIT_KM } from '../solar-data'
+import type { TransferPlannerResult } from '../simulation/transfer-planner'
 import type { SimulationMetrics } from '../simulation/types'
 
 /**
@@ -16,9 +17,7 @@ export function useSimulationMetrics(
     simulatedDate: Date,
     shipPosition: Vector3,
     velocity: Vector3,
-    targetPosition: Vector3,
-    targetBearingDeg: number,
-    etaDays: number | null,
+    plannerResult: TransferPlannerResult,
   ) => void
 } {
   const accumulatorRef = useRef(0)
@@ -34,9 +33,7 @@ export function useSimulationMetrics(
       simulatedDate: Date,
       shipPosition: Vector3,
       velocity: Vector3,
-      targetPosition: Vector3,
-      targetBearingDeg: number,
-      etaDays: number | null,
+      plannerResult: TransferPlannerResult,
     ) => {
       accumulatorRef.current += deltaSec
 
@@ -46,9 +43,11 @@ export function useSimulationMetrics(
           simulatedDate: new Date(simulatedDate),
           shipSpeedKmPerSecond: velocity.length() * ASTRONOMICAL_UNIT_KM,
           heliocentricDistanceAu: shipPosition.length(),
-          targetDistanceAu: shipPosition.distanceTo(targetPosition),
-          targetBearingDeg,
-          etaDays,
+          currentTargetDistanceAu: plannerResult.travel.currentDistanceAu,
+          plannedDistanceAu: plannerResult.travel.plannedDistanceAu,
+          plannerStatus: plannerResult.status,
+          targetBearingDeg: plannerResult.guidance.bearingAngleDeg,
+          etaDays: plannerResult.travel.etaDays,
         })
       }
     },

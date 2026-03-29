@@ -3,6 +3,7 @@ import {
   formatEtaDays,
   formatShipSpeedKmPerSecond,
   formatTimeWarp,
+  formatTransferPlannerStatus,
   formatUtcDate,
 } from '../simulation/formatters'
 import type { SimulationMetrics } from '../simulation/types'
@@ -56,8 +57,16 @@ export function MetricsPanel({
         />
         <MetricCell label="Destination" value={selectedLocationName} />
         <MetricCell
-          label="Range"
-          value={formatDistanceAu(metrics.targetDistanceAu)}
+          label="Planner"
+          value={formatTransferPlannerStatus(metrics.plannerStatus)}
+        />
+        <MetricCell
+          label="Target range"
+          value={formatDistanceAu(metrics.currentTargetDistanceAu)}
+        />
+        <MetricCell
+          label="Planned range"
+          value={formatDistanceAu(metrics.plannedDistanceAu)}
         />
         <MetricCell
           label="Bearing"

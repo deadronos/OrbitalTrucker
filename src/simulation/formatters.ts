@@ -1,4 +1,5 @@
 import { ASTRONOMICAL_UNIT_KM } from '../solar-data'
+import type { TransferPlannerStatus } from './transfer-planner'
 
 export function formatDistanceAu(distanceAu: number): string {
   if (distanceAu >= 1) {
@@ -46,4 +47,17 @@ export function formatEtaDays(etaDays: number | null): string {
   }
 
   return `${(etaDays / 365.25).toFixed(1)} yr`
+}
+
+export function formatTransferPlannerStatus(
+  status: TransferPlannerStatus,
+): string {
+  switch (status) {
+    case 'current-position':
+      return 'Current fix'
+    case 'future-intercept':
+      return 'Future intercept'
+    case 'no-solution':
+      return 'Fallback'
+  }
 }
