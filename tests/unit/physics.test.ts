@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   createInitialShipState,
+  PITCH_LIMIT_RAD,
   stepShipPhysics,
 } from '../../src/simulation/physics'
 
@@ -55,7 +56,7 @@ describe('stepShipPhysics', () => {
     )
   })
 
-  it('applies emergency braking when Space is held', () => {
+  it('applies kill-velocity braking when Space is held', () => {
     const state = createInitialShipState()
     state.velocity.set(1, 0, 0) // start moving fast
 
@@ -64,15 +65,14 @@ describe('stepShipPhysics', () => {
     expect(state.velocity.length()).toBeLessThan(1)
   })
 
-  it('applies passive damping when no braking key is held', () => {
+  it('does not apply passive damping when no braking key is held (Newtonian)', () => {
     const state = createInitialShipState()
     state.velocity.set(1, 0, 0)
 
     stepShipPhysics(state, new Set(), 0.016)
 
-    // velocity should decay by the damping factor (0.999 per frame)
-    expect(state.velocity.length()).toBeLessThan(1)
-    expect(state.velocity.length()).toBeGreaterThan(0.99)
+    // Newtonian: velocity must be exactly preserved without active braking
+    expect(state.velocity.length()).toBeCloseTo(1, 10)
   })
 
   it('moves the ship forward when W is pressed with pitch=0 and yaw=0', () => {
@@ -123,5 +123,110 @@ describe('stepShipPhysics', () => {
 
     // s2 should not be affected
     expect(s2.position).toEqual(new Vector3(1.04, 0.012, 0.02))
+  })
+
+  // ── Angular velocity / rotation thruster tests ──────────────────────────
+
+  it('accumulates angular velocity when an arrow key is held', () => {
+    const state = createInitialShipState()
+    state.rotationAssist = false // disable assist so velocity persists
+
+    stepShipPhysics(state, new Set(['ArrowLeft']), 1.0)
+
+    expect(state.angularVelocity.yaw).toBeGreaterThan(0)
+  })
+
+  it('angular velocity persists across frames when rotation assist is off', () => {
+    const state = createInitialShipState()
+    state.rotationAssist = false
+
+    // Apply one frame of rotation input
+    stepShipPhysics(state, new Set(['ArrowLeft']), 1.0)
+    const yawVelAfterInput = state.angularVelocity.yaw
+
+    // Next frame with no input and assist off — velocity must be unchanged
+    stepShipPhysics(state, new Set(), 0.016)
+
+    expect(state.angularVelocity.yaw).toBeCloseTo(yawVelAfterInput, 10)
+  })
+
+  it('rotation assist auto-damps angular velocity when no rotation input is active', () => {
+    const state = createInitialShipState()
+    state.rotationAssist = true
+    state.angularVelocity.yaw = 1.0 // start spinning
+
+    // Run several frames with no rotation input
+    for (let i = 0; i < 20; i++) {
+      stepShipPhysics(state, new Set(), 0.016)
+    }
+
+    expect(state.angularVelocity.yaw).toBeLessThan(1.0)
+  })
+
+  it('rotation assist does not damp while arrow keys are held', () => {
+    const state = createInitialShipState()
+    state.rotationAssist = true
+
+    // Hold ArrowLeft for one frame — assist must not counteract the input
+    stepShipPhysics(state, new Set(['ArrowLeft']), 1.0)
+
+    expect(state.angularVelocity.yaw).toBeGreaterThan(0)
+  })
+
+  it('kill rotation (R) reduces angular velocity toward zero', () => {
+    const state = createInitialShipState()
+    state.angularVelocity.yaw = 2.0
+    state.angularVelocity.pitch = -1.5
+
+    stepShipPhysics(state, new Set(['KeyR']), 0.5)
+
+    expect(Math.abs(state.angularVelocity.yaw)).toBeLessThan(2.0)
+    expect(Math.abs(state.angularVelocity.pitch)).toBeLessThan(1.5)
+  })
+
+  it('angular velocity integrates into yaw each frame', () => {
+    const state = createInitialShipState()
+    state.rotationAssist = false
+    const initialYaw = state.yaw
+
+    state.angularVelocity.yaw = 1.0 // 1 rad/s
+    stepShipPhysics(state, new Set(), 0.5) // half a second
+
+    // yaw should have increased by ~0.5 radians
+    expect(state.yaw).toBeCloseTo(initialYaw + 0.5, 5)
+  })
+
+  it('pitch is clamped to PITCH_LIMIT_RAD when angular velocity would exceed it', () => {
+    const state = createInitialShipState()
+    state.rotationAssist = false
+    state.pitch = PITCH_LIMIT_RAD - 0.01
+    state.angularVelocity.pitch = 10.0 // large upward spin
+
+    stepShipPhysics(state, new Set(), 1.0)
+
+    expect(state.pitch).toBeLessThanOrEqual(PITCH_LIMIT_RAD)
+  })
+
+  it('boosted angular thrust (Shift + ArrowLeft) produces more yaw velocity than normal', () => {
+    const stateNormal = createInitialShipState()
+    stateNormal.rotationAssist = false
+
+    const stateBoosted = createInitialShipState()
+    stateBoosted.rotationAssist = false
+
+    stepShipPhysics(stateNormal, new Set(['ArrowLeft']), 1.0)
+    stepShipPhysics(stateBoosted, new Set(['ArrowLeft', 'Shift']), 1.0)
+
+    expect(stateBoosted.angularVelocity.yaw).toBeGreaterThan(
+      stateNormal.angularVelocity.yaw,
+    )
+  })
+
+  it('initial state has zero angular velocity and rotation assist enabled', () => {
+    const state = createInitialShipState()
+
+    expect(state.angularVelocity.yaw).toBe(0)
+    expect(state.angularVelocity.pitch).toBe(0)
+    expect(state.rotationAssist).toBe(true)
   })
 })

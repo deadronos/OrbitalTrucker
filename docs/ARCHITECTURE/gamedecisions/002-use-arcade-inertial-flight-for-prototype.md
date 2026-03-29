@@ -1,6 +1,6 @@
 # ADR 002: Use arcade-friendly inertial flight for the prototype ship
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR 004](./004-newtonian-ship-flight-model.md)
 - **Date:** 2026-03-29
 
 ## Context
