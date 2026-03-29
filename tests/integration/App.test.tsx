@@ -8,18 +8,18 @@ import type { SimulatorCanvasProps } from '../../src/components/SimulatorCanvas'
 
 function StubScene({
   onMetricsChange,
-  selectedBodyName,
+  selectedLocationId,
 }: SimulatorCanvasProps) {
   useEffect(() => {
     onMetricsChange({
       simulatedDate: new Date('2026-03-29T12:00:00.000Z'),
       shipSpeedKmPerSecond: 42.4,
       heliocentricDistanceAu: 1.04,
-      targetDistanceAu: selectedBodyName === 'Pluto' ? 34.95 : 2.03,
+      targetDistanceAu: selectedLocationId === 'pluto' ? 34.95 : 2.03,
       targetBearingDeg: 45,
-      etaDays: selectedBodyName === 'Pluto' ? 365 : null,
+      etaDays: selectedLocationId === 'pluto' ? 365 : null,
     })
-  }, [onMetricsChange, selectedBodyName])
+  }, [onMetricsChange, selectedLocationId])
 
   return <div data-testid="stub-scene" />
 }
@@ -34,9 +34,9 @@ describe('AppShell', () => {
     expect(screen.getByText('42.4 km/s')).toBeInTheDocument()
     expect(screen.getByText('2.03 AU')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Pluto' }))
+    await user.selectOptions(screen.getByLabelText('Destination'), 'pluto')
 
     expect(screen.getByText('34.95 AU')).toBeInTheDocument()
-    expect(screen.getByTestId('target-pluto')).toHaveClass('active')
+    expect(screen.getByTestId('destination-select')).toHaveValue('pluto')
   })
 })

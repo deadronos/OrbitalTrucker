@@ -25,10 +25,16 @@ import { TargetMarker } from '../scene/TargetMarker'
 import { TrajectoryLine } from '../scene/TrajectoryLine'
 import { type SimulationMetrics } from '../simulation/types'
 import { planRoute } from '../simulation/trajectory'
-import { SOLAR_BODIES, SUN } from '../solar-data'
+import { SUN } from '../solar-data'
+import {
+  createEphemerisSolarBodyResolver,
+  getLocationById,
+  getLocationMarkerScaleAu,
+  resolveLocationPosition,
+} from '../world/locations'
 
 export type SimulatorCanvasProps = {
-  selectedBodyName: string
+  selectedLocationId: string
   timeWarpIndex: number
   timePaused: boolean
   /** Increment this value to trigger an immediate orient-to-target rotation. */
@@ -37,7 +43,7 @@ export type SimulatorCanvasProps = {
 }
 
 function SceneContents({
-  selectedBodyName,
+  selectedLocationId,
   timePaused,
   timeWarpIndex,
   autoOrientTrigger,
@@ -62,12 +68,15 @@ function SceneContents({
   // Refs shared across hooks and the orchestrator frame
   const targetMarkerRef = useRef<Mesh>(null)
   const trajectoryLineRef = useRef<Line>(null)
-  const selectedBodyNameRef = useRef(selectedBodyName)
-  const zeroVector = useMemo(() => new Vector3(0, 0, 0), [])
+  const selectedLocationIdRef = useRef(selectedLocationId)
+  const fallbackSolarBodyResolver = useMemo(
+    () => createEphemerisSolarBodyResolver(),
+    [],
+  )
 
   useEffect(() => {
-    selectedBodyNameRef.current = selectedBodyName
-  }, [selectedBodyName])
+    selectedLocationIdRef.current = selectedLocationId
+  }, [selectedLocationId])
 
   // Body positions hook — owns mesh refs, updates transforms, and exposes the
   // latest positions map. Registered after useTimeSimulation so it reads the
@@ -75,7 +84,13 @@ function SceneContents({
   const { bodyMeshRefs, bodyPositionsRef } = useBodyPositions(simulatedDateRef)
 
   // Auto-orient hook — rotates the ship to face the target on demand.
-  useAutoOrient(autoOrientTrigger, selectedBodyNameRef, shipStateRef, bodyPositionsRef)
+  useAutoOrient(
+    autoOrientTrigger,
+    selectedLocationIdRef,
+    shipStateRef,
+    bodyPositionsRef,
+    simulatedDateRef,
+  )
 
   // Per-frame: drive target marker, trajectory line, and metrics.
   // Fires after the hook frames (time → ship → camera → body positions)
@@ -84,19 +99,25 @@ function SceneContents({
     const realDelta = Math.min(delta, 0.05)
     const date = simulatedDateRef.current
 
-    const selectedName = selectedBodyNameRef.current
-    const selectedTargetPosition =
-      selectedName === SUN.name
-        ? zeroVector
-        : (bodyPositionsRef.current.get(selectedName) ?? zeroVector)
-    const targetVisual = SOLAR_BODIES.find((body) => body.name === selectedName)
+    const selectedLocationId = selectedLocationIdRef.current
+    const selectedLocation = getLocationById(selectedLocationId)
+    const selectedTargetPosition = resolveLocationPosition(selectedLocationId, {
+      date,
+      resolveSolarBodyPosition: (bodyName, resolveDate) =>
+        resolveSolarBodyPosition(
+          bodyName,
+          resolveDate,
+          bodyPositionsRef.current,
+          fallbackSolarBodyResolver,
+        ),
+    })
 
     targetMarkerRef.current?.position.copy(selectedTargetPosition)
     targetMarkerRef.current?.lookAt(state.camera.position)
     targetMarkerRef.current?.scale.setScalar(
-      targetVisual
-        ? targetVisual.displayRadiusAu * 7
-        : SUN.displayRadiusAu * 1.7,
+      (selectedLocation
+        ? getLocationMarkerScaleAu(selectedLocation.id)
+        : SUN.displayRadiusAu) * 7,
     )
 
     // Trajectory planning
@@ -172,3 +193,16 @@ export function SimulatorCanvas(props: SimulatorCanvasProps) {
 
 // Default export enables React.lazy(() => import('./SimulatorCanvas')) in App.tsx.
 export default SimulatorCanvas
+
+function resolveSolarBodyPosition(
+  bodyName: string,
+  date: Date,
+  bodyPositions: Map<string, Vector3>,
+  fallbackResolver: ReturnType<typeof createEphemerisSolarBodyResolver>,
+): Vector3 {
+  if (bodyName === SUN.name) {
+    return new Vector3(0, 0, 0)
+  }
+
+  return bodyPositions.get(bodyName) ?? fallbackResolver(bodyName, date)
+}
