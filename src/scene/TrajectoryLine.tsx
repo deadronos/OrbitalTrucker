@@ -5,9 +5,9 @@ type TrajectoryLineProps = {
 }
 
 /**
- * Visual straight-line course indicator drawn from the ship to the currently
- * selected target. The two endpoint positions are driven imperatively each
- * frame by the scene orchestrator via the forwarded `lineRef`.
+ * Visual course indicator drawn from the ship to the planner's current aim
+ * point. The two endpoint positions are driven imperatively each frame by the
+ * scene orchestrator via the forwarded `lineRef`.
  */
 export function TrajectoryLine({ lineRef }: TrajectoryLineProps) {
   return (

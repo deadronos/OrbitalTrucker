@@ -23,8 +23,8 @@ import { SolarBodies } from '../scene/SolarBodies'
 import { SunMesh } from '../scene/SunMesh'
 import { TargetMarker } from '../scene/TargetMarker'
 import { TrajectoryLine } from '../scene/TrajectoryLine'
+import { planTransfer } from '../simulation/transfer-planner'
 import { type SimulationMetrics } from '../simulation/types'
-import { planRoute } from '../simulation/trajectory'
 import { SUN } from '../solar-data'
 import {
   createEphemerisSolarBodyResolver,
@@ -88,6 +88,7 @@ function SceneContents({
     autoOrientTrigger,
     selectedLocationIdRef,
     shipStateRef,
+    forwardRef,
     bodyPositionsRef,
     simulatedDateRef,
   )
@@ -101,18 +102,30 @@ function SceneContents({
 
     const selectedLocationId = selectedLocationIdRef.current
     const selectedLocation = getLocationById(selectedLocationId)
-    const selectedTargetPosition = resolveLocationPosition(selectedLocationId, {
+    const resolveSelectedLocationPosition = (
+      locationId: string,
+      resolveDate: Date,
+    ) =>
+      resolveLocationPosition(locationId, {
+        date: resolveDate,
+        resolveSolarBodyPosition: (bodyName, bodyDate) =>
+          resolveSolarBodyPosition(
+            bodyName,
+            bodyDate,
+            bodyPositionsRef.current,
+            fallbackSolarBodyResolver,
+          ),
+      })
+    const plan = planTransfer({
       date,
-      resolveSolarBodyPosition: (bodyName, resolveDate) =>
-        resolveSolarBodyPosition(
-          bodyName,
-          resolveDate,
-          bodyPositionsRef.current,
-          fallbackSolarBodyResolver,
-        ),
+      shipPosition: shipStateRef.current.position,
+      shipVelocity: shipStateRef.current.velocity,
+      shipForward: forwardRef.current,
+      destinationId: selectedLocationId,
+      resolveDestinationPosition: resolveSelectedLocationPosition,
     })
 
-    targetMarkerRef.current?.position.copy(selectedTargetPosition)
+    targetMarkerRef.current?.position.copy(plan.destination.currentPosition)
     targetMarkerRef.current?.lookAt(state.camera.position)
     targetMarkerRef.current?.scale.setScalar(
       (selectedLocation
@@ -120,14 +133,7 @@ function SceneContents({
         : SUN.displayRadiusAu) * 7,
     )
 
-    // Trajectory planning
     const shipState = shipStateRef.current
-    const plan = planRoute(
-      shipState.position,
-      selectedTargetPosition,
-      forwardRef.current,
-      shipState.velocity.length(),
-    )
 
     // Update course line endpoints
     const line = trajectoryLineRef.current
@@ -137,22 +143,14 @@ function SceneContents({
       arr[0] = shipState.position.x
       arr[1] = shipState.position.y
       arr[2] = shipState.position.z
-      arr[3] = selectedTargetPosition.x
-      arr[4] = selectedTargetPosition.y
-      arr[5] = selectedTargetPosition.z
+      arr[3] = plan.guidance.aimPosition.x
+      arr[4] = plan.guidance.aimPosition.y
+      arr[5] = plan.guidance.aimPosition.z
       posAttr.needsUpdate = true
       line.geometry.computeBoundingSphere()
     }
 
-    report(
-      realDelta,
-      date,
-      shipState.position,
-      shipState.velocity,
-      selectedTargetPosition,
-      plan.bearingAngleDeg,
-      plan.etaDays,
-    )
+    report(realDelta, date, shipState.position, shipState.velocity, plan)
   })
 
   return (

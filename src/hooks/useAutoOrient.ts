@@ -3,6 +3,7 @@ import { Vector3 } from 'three'
 
 import { PITCH_LIMIT_RAD, type ShipState } from '../simulation/physics'
 import { directionToYawPitch } from '../simulation/trajectory'
+import { planTransfer } from '../simulation/transfer-planner'
 import { SUN } from '../solar-data'
 import {
   createEphemerisSolarBodyResolver,
@@ -10,14 +11,15 @@ import {
 } from '../world/locations'
 
 /**
- * When `autoOrientTrigger` increments, reads the current target position from
- * the destination catalog and rotates the ship to face it by mutating
- * `shipStateRef` (yaw and pitch).
+ * When `autoOrientTrigger` increments, computes a fresh transfer plan for the
+ * selected destination and rotates the ship to face the planner's aim point by
+ * mutating `shipStateRef` (yaw and pitch).
  */
 export function useAutoOrient(
   autoOrientTrigger: number,
   selectedLocationIdRef: React.RefObject<string>,
   shipStateRef: React.RefObject<ShipState>,
+  shipForwardRef: React.RefObject<Vector3>,
   bodyPositionsRef: React.RefObject<Map<string, Vector3>>,
   simulatedDateRef: React.RefObject<Date>,
 ): void {
@@ -32,27 +34,31 @@ export function useAutoOrient(
     if (autoOrientTrigger === prevTriggerRef.current) return
     prevTriggerRef.current = autoOrientTrigger
 
-    const targetPos = resolveLocationPosition(selectedLocationIdRef.current, {
+    const plan = planTransfer({
       date: simulatedDateRef.current,
-      resolveSolarBodyPosition: (bodyName, date) => {
-        if (bodyName === SUN.name) {
-          return zeroVector
-        }
+      shipPosition: shipStateRef.current.position,
+      shipVelocity: shipStateRef.current.velocity,
+      shipForward: shipForwardRef.current,
+      destinationId: selectedLocationIdRef.current,
+      resolveDestinationPosition: (destinationId, resolveDate) =>
+        resolveLocationPosition(destinationId, {
+          date: resolveDate,
+          resolveSolarBodyPosition: (bodyName, bodyDate) => {
+            if (bodyName === SUN.name) {
+              return zeroVector
+            }
 
-        return (
-          bodyPositionsRef.current.get(bodyName) ??
-          fallbackSolarBodyResolver(bodyName, date)
-        )
-      },
+            return (
+              bodyPositionsRef.current.get(bodyName) ??
+              fallbackSolarBodyResolver(bodyName, bodyDate)
+            )
+          },
+        }),
     })
 
-    const direction = new Vector3().subVectors(
-      targetPos,
-      shipStateRef.current.position,
-    )
+    const direction = plan.guidance.direction.clone()
 
     if (direction.length() > 0) {
-      direction.normalize()
       const { yaw, pitch } = directionToYawPitch(direction)
       shipStateRef.current.yaw = yaw
       shipStateRef.current.pitch = Math.max(
@@ -64,6 +70,7 @@ export function useAutoOrient(
     autoOrientTrigger,
     selectedLocationIdRef,
     shipStateRef,
+    shipForwardRef,
     bodyPositionsRef,
     simulatedDateRef,
     fallbackSolarBodyResolver,
