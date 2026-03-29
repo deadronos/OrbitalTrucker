@@ -49,5 +49,10 @@ describe('ControlPanel', () => {
     expect(screen.getByText('Destination-driven bridge')).toBeInTheDocument()
     expect(screen.getByText('Autonomy: Acquiring course')).toBeInTheDocument()
     expect(screen.getByText('Planner: Future intercept')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'The cyan ring marks the destination now, and the amber marker shows the predicted intercept fix the ship is leading toward.',
+      ),
+    ).toBeInTheDocument()
   })
 })

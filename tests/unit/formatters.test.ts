@@ -3,6 +3,7 @@ import {
   formatDistanceAu,
   formatDurationSeconds,
   formatShipSpeedKmPerSecond,
+  formatShortUtcDate,
   formatTimeWarp,
   formatUtcDate,
 } from '../../src/simulation/formatters'
@@ -32,6 +33,12 @@ describe('formatters', () => {
   it('formats UTC dates consistently', () => {
     expect(formatUtcDate(new Date('2026-03-29T12:00:00.000Z'))).toBe(
       'Sun, 29 Mar 2026 12:00:00 UTC',
+    )
+  })
+
+  it('formats compact UTC dates for intercept-fix telemetry', () => {
+    expect(formatShortUtcDate(new Date('2026-03-29T12:00:00.000Z'))).toBe(
+      'Sun, 29 Mar 2026 12:00 UTC',
     )
   })
 

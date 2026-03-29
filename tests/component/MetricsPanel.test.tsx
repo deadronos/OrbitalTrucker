@@ -15,6 +15,7 @@ const METRICS: SimulationMetrics = {
   targetBearingDeg: 12.5,
   etaDays: 14.5,
   interceptTimeSeconds: 604_800,
+  interceptDate: new Date('2026-04-06T08:00:00.000Z'),
   targetMotionDuringInterceptAu: 0.004,
 }
 
@@ -33,6 +34,7 @@ describe('MetricsPanel', () => {
     expect(screen.getByText('Travel status')).toBeInTheDocument()
     expect(screen.getByText('Braking')).toBeInTheDocument()
     expect(screen.getByText('Future intercept')).toBeInTheDocument()
+    expect(screen.getByText('Mon, 06 Apr 2026 08:00 UTC')).toBeInTheDocument()
     expect(screen.getByText('paused')).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: 'Resume sim' }),

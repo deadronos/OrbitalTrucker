@@ -27,6 +27,10 @@ function StubScene({
       etaDays: selectedLocationId === 'pluto' ? 365 : null,
       interceptTimeSeconds:
         selectedLocationId === 'pluto' ? 100 * 86_400 : null,
+      interceptDate:
+        selectedLocationId === 'pluto'
+          ? new Date('2026-07-07T12:00:00.000Z')
+          : null,
       targetMotionDuringInterceptAu: selectedLocationId === 'pluto' ? 1.45 : 0,
     })
   }, [onMetricsChange, selectedLocationId])
@@ -56,6 +60,7 @@ describe('AppShell', () => {
     expect(screen.getByText('Future intercept')).toBeInTheDocument()
     expect(screen.getByText('Cruising')).toBeInTheDocument()
     expect(screen.getByText('100.0 d')).toBeInTheDocument()
+    expect(screen.getByText('Tue, 07 Jul 2026 12:00 UTC')).toBeInTheDocument()
     expect(screen.getByTestId('destination-select')).toHaveValue('pluto')
   })
 })

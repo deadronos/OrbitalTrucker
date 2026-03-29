@@ -53,6 +53,12 @@ export function useSimulationMetrics(
           targetBearingDeg: plannerResult.guidance.bearingAngleDeg,
           etaDays: plannerResult.travel.etaDays,
           interceptTimeSeconds: plannerResult.travel.interceptTimeSeconds,
+          interceptDate:
+            plannerResult.status === 'future-intercept'
+              ? plannerResult.destination.predictedDate
+                ? new Date(plannerResult.destination.predictedDate)
+                : null
+              : null,
           targetMotionDuringInterceptAu:
             plannerResult.travel.targetMotionDuringInterceptAu,
         })

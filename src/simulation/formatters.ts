@@ -30,6 +30,10 @@ export function formatUtcDate(date: Date): string {
   return date.toUTCString().replace('GMT', 'UTC')
 }
 
+export function formatShortUtcDate(date: Date): string {
+  return date.toUTCString().replace(/:\d{2} GMT$/, ' UTC')
+}
+
 /**
  * Formats an ETA expressed in days into a human-readable string.
  * Returns an em-dash when the ship is stationary (etaDays is null).

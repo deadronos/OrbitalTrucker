@@ -4,6 +4,7 @@ import {
   formatDurationSeconds,
   formatEtaDays,
   formatShipSpeedKmPerSecond,
+  formatShortUtcDate,
   formatTimeWarp,
   formatTransferPlannerStatus,
   formatUtcDate,
@@ -77,6 +78,13 @@ export function MetricsPanel({
           label="Intercept window"
           value={formatDurationSeconds(metrics.interceptTimeSeconds)}
         />
+        {metrics.interceptDate ? (
+          <MetricCell
+            className="col-span-2"
+            label="Intercept fix"
+            value={formatShortUtcDate(metrics.interceptDate)}
+          />
+        ) : null}
         <MetricCell
           label="Target drift"
           value={formatDistanceAu(metrics.targetMotionDuringInterceptAu)}
