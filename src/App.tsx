@@ -13,6 +13,7 @@ import {
   type SimulatorCanvasProps,
 } from './components/SimulatorCanvas'
 import { SUN, SOLAR_BODIES } from './solar-data'
+import { Card } from './components/ui/card'
 
 type AppShellProps = {
   SceneComponent?: ComponentType<SimulatorCanvasProps>
@@ -62,7 +63,7 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
   }, [])
 
   return (
-    <div className="sim-shell">
+    <div className="relative h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(46,_86,_142,_0.28),_transparent_35%),linear-gradient(180deg,_rgba(2,_4,_9,_0.78),_rgba(2,_4,_9,_0.98))] text-slate-50">
       <SceneComponent
         autoOrientTrigger={autoOrientTrigger}
         selectedBodyName={selectedBodyName}
@@ -71,21 +72,26 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
         onMetricsChange={setMetrics}
       />
 
-      <div className="overlay">
-        <section className="panel intro-panel">
-          <p className="eyebrow">OrbitalTrucker / react-r3f port</p>
-          <h1>Freighter bridge</h1>
-          <p>
-            Fly a placeholder cargo freighter through a heliocentric map with
-            the Sun, all major planets, and Pluto using Keplerian orbital
-            elements at realistic solar-system distances.
+      <aside className="pointer-events-none absolute inset-y-4 left-4 z-10 flex w-[min(20rem,calc(100vw-2rem))] flex-col gap-3 overflow-y-auto pr-1 sm:w-[19rem] lg:w-[20rem]">
+        <Card className="pointer-events-auto border-white/10 bg-slate-950/55 p-4 shadow-[0_24px_60px_rgba(0,0,0,0.3)] backdrop-blur-xl">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-cyan-200/80">
+                OrbitalTrucker
+              </p>
+              <h1 className="mt-1 text-lg font-semibold tracking-tight text-slate-50">
+                Minimal bridge HUD
+              </h1>
+            </div>
+            <span className="rounded-full border border-cyan-400/15 bg-cyan-400/10 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-cyan-100/90">
+              R3F
+            </span>
+          </div>
+          <p className="mt-2 text-sm leading-6 text-slate-300">
+            The simulator stays full-screen; the HUD keeps navigation, telemetry,
+            and orbit reference within quick-glance range.
           </p>
-          <p className="muted">
-            The scene now runs through React, React Three Fiber, and Drei
-            helpers while keeping AU scale distances, exaggerated visible body
-            sizes, and lightweight but plausible orbital mechanics.
-          </p>
-        </section>
+        </Card>
 
         <MetricsPanel
           metrics={metrics}
@@ -116,7 +122,7 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
         />
 
         <LegendPanel bodies={legendBodies} />
-      </div>
+      </aside>
     </div>
   )
 }

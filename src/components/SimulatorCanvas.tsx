@@ -189,7 +189,7 @@ export function SimulatorCanvas(props: SimulatorCanvasProps) {
         far: 8000,
         position: [0.85, 0.1, 0.25],
       }}
-      className="sim-canvas"
+      className="absolute inset-0 z-0"
       dpr={[1, 2]}
       frameloop="always"
       gl={{ antialias: true, logarithmicDepthBuffer: true }}
