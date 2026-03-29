@@ -2,6 +2,10 @@ import { DoubleSide, Mesh } from 'three'
 
 type TargetMarkerProps = {
   targetRef: React.RefObject<Mesh | null>
+  color?: string
+  innerRadius?: number
+  outerRadius?: number
+  opacity?: number
 }
 
 /**
@@ -9,13 +13,19 @@ type TargetMarkerProps = {
  * Position, orientation, and scale are driven imperatively each frame by
  * the scene orchestrator via `targetRef`.
  */
-export function TargetMarker({ targetRef }: TargetMarkerProps) {
+export function TargetMarker({
+  targetRef,
+  color = '#9fe0ff',
+  innerRadius = 0.12,
+  outerRadius = 0.16,
+  opacity = 0.86,
+}: TargetMarkerProps) {
   return (
     <mesh ref={targetRef}>
-      <ringGeometry args={[0.12, 0.16, 64]} />
+      <ringGeometry args={[innerRadius, outerRadius, 64]} />
       <meshBasicMaterial
-        color="#9fe0ff"
-        opacity={0.86}
+        color={color}
+        opacity={opacity}
         side={DoubleSide}
         transparent
       />

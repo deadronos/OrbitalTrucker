@@ -33,6 +33,7 @@ export function ControlPanel({
     ? getLocationParent(selectedLocation)
     : undefined
   const destinationGroups = groupDestinations(destinations)
+  const plannerNarrative = describePlannerState(metrics.plannerStatus)
 
   return (
     <Card className="pointer-events-auto border-white/10 bg-slate-950/55 p-4 shadow-[0_24px_60px_rgba(0,0,0,0.3)] backdrop-blur-xl">
@@ -109,6 +110,9 @@ export function ControlPanel({
               transition between course acquisition, cruise, braking, and
               arrival without manual steering prompts.
             </p>
+            <p className="mt-2 text-xs leading-5 text-cyan-100/75">
+              {plannerNarrative}
+            </p>
           </div>
         ) : null}
       </div>
@@ -143,4 +147,17 @@ function groupDestinations(destinations: readonly LocationDefinition[]) {
   }
 
   return Array.from(groups.entries())
+}
+
+function describePlannerState(
+  plannerStatus: SimulationMetrics['plannerStatus'],
+): string {
+  switch (plannerStatus) {
+    case 'current-position':
+      return "Route overlay is steering toward the destination's current resolved position."
+    case 'future-intercept':
+      return 'The cyan ring marks the destination now, and the amber marker shows the predicted intercept fix the ship is leading toward.'
+    case 'no-solution':
+      return 'The planner has fallen back to the current destination fix until it can recover a better intercept solution.'
+  }
 }

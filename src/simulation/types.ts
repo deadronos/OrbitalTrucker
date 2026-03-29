@@ -17,6 +17,8 @@ export type SimulationMetrics = {
   etaDays: number | null
   /** Planned time-to-intercept for the current route solution. */
   interceptTimeSeconds: number | null
+  /** UTC timestamp for the predicted intercept fix when one exists. */
+  interceptDate: Date | null
   /** Expected destination motion between the current fix and intercept aim point. */
   targetMotionDuringInterceptAu: number
 }
@@ -36,5 +38,6 @@ export const INITIAL_METRICS: SimulationMetrics = {
   targetBearingDeg: 0,
   etaDays: null,
   interceptTimeSeconds: null,
+  interceptDate: null,
   targetMotionDuringInterceptAu: 0,
 }
