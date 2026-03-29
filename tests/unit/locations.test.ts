@@ -19,15 +19,11 @@ describe('locations', () => {
     expect(getLocationParent(location! /* covered above */)?.id).toBe('mars')
   })
 
-  it('resolves anchored locations recursively through the catalog', () => {
+  it('resolves moon-anchored locations recursively through the catalog', () => {
     const solarBodyResolver: SolarBodyPositionResolver = (bodyName) => {
       switch (bodyName) {
         case 'Earth':
           return new Vector3(1, 2, 3)
-        case 'Mars':
-          return new Vector3(4, 5, 6)
-        case 'Jupiter':
-          return new Vector3(7, 8, 9)
         default:
           return new Vector3(0, 0, 0)
       }
@@ -42,10 +38,10 @@ describe('locations', () => {
       resolveSolarBodyPosition: solarBodyResolver,
     })
 
-    expect(moonPosition.x).toBeCloseTo(1.00257, 6)
-    expect(moonPosition.y).toBeCloseTo(2, 6)
-    expect(colonyPosition.x).toBeCloseTo(1.00257, 6)
-    expect(colonyPosition.y).toBeCloseTo(2.00005, 6)
+    expect(moonPosition.distanceTo(new Vector3(1, 2, 3))).toBeGreaterThan(0.002)
+    expect(colonyPosition.x).toBeCloseTo(moonPosition.x, 6)
+    expect(colonyPosition.y).toBeCloseTo(moonPosition.y + 0.00005, 6)
+    expect(colonyPosition.z).toBeCloseTo(moonPosition.z, 6)
   })
 
   it('can resolve future positions through the ephemeris-backed body resolver', () => {
@@ -57,6 +53,20 @@ describe('locations', () => {
 
     expect(position.length()).toBeGreaterThan(0.9)
     expect(position.length()).toBeLessThan(1.1)
+  })
+
+  it('resolves Jovian moon destinations as moving bodies rather than static anchors', () => {
+    const resolver = createEphemerisSolarBodyResolver()
+    const start = resolveLocationPosition('europa', {
+      date: new Date('2026-03-30T00:00:00.000Z'),
+      resolveSolarBodyPosition: resolver,
+    })
+    const later = resolveLocationPosition('europa', {
+      date: new Date('2026-03-31T00:00:00.000Z'),
+      resolveSolarBodyPosition: resolver,
+    })
+
+    expect(start.distanceTo(later)).toBeGreaterThan(0.001)
   })
 
   it('formats human-readable kind labels for the destination UI', () => {

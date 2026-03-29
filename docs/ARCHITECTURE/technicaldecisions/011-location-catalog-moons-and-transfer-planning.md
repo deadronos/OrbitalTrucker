@@ -79,6 +79,26 @@ This creates a bounded ephemeris target: add the moons needed for the chosen
 network, prove the architecture, then expand later only if new destinations
 justify it.
 
+Implementation-wise, these moons should stop behaving like static placeholder
+offsets from their parent planets.
+
+Instead:
+
+- the destination catalog should identify those entries as moon bodies with a
+  dedicated moon ephemeris resolver
+- the resolver should use curated mean orbital elements at a documented epoch
+  and advance the moon along its orbit relative to its parent body
+- the Earth's Moon can use ecliptic mean elements directly
+- the selected Jovian moons can use mean elements in Jupiter's local Laplace
+  plane, then transform those parent-relative positions into the simulation's
+  global ecliptic frame
+- colonies and stations anchored to those moons should continue to resolve as
+  parent-relative offsets layered on top of the moon's moving position
+
+This keeps the implementation bounded while still making moon-backed
+destinations physically meaningful and queryable at current and future
+simulation times.
+
 ### 4. Introduce a pure transfer-planning layer
 
 The current straight-line helper in `src/simulation/trajectory.ts` is no longer
@@ -174,6 +194,10 @@ source of truth for the initial implementation scope.
   from quietly remaining the real navigation logic.
 - Anchored-destination rules need careful documentation so colony/station
   positions remain predictable and debuggable.
+- Moon ephemerides now add a second class of moving body: heliocentric solar
+  bodies and parent-relative moons. The boundary between those systems must
+  stay explicit so future expansion does not accidentally overload the
+  heliocentric provider abstraction from ADR 006.
 
 ## Follow-up
 
@@ -183,3 +207,10 @@ source of truth for the initial implementation scope.
 - Replace normal-play manual input with guidance-driven ship control.
 - Update route visuals, telemetry, and tests so they reflect planner/guidance
   state instead of the old manual-flight assumptions.
+
+## References
+
+- JPL Solar System Dynamics. "Planetary Satellite Mean Elements." Mean elements
+  at epoch 2000-01-01.5 TDB for the Moon and the regular Jovian satellites.
+- JPL Solar System Dynamics. "Planetary Satellite Ephemeris: JUP365." Source
+  ephemeris family used for the cited Jovian mean elements.
