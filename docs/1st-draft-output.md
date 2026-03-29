@@ -1,131 +1,198 @@
-# OrbitalTrucker — first draft output
+# OrbitalTrucker — current implementation draft
 
-## What was built
+## What changed in this iteration
 
-A browser-based 3D solar-system simulator prototype was created using Vite, TypeScript, and Three.js.
+The original prototype has been ported from an imperative Vite + TypeScript + Three.js entry file into a React-based implementation using React Three Fiber and Drei where that abstraction is helpful.
 
-The current build includes:
+This migration preserved the current simulator behavior while modernizing the app structure, adding automated verification, and formalizing code-quality tooling.
 
-- a full-screen heliocentric map of the solar system
+## Current application snapshot
+
+The app now provides:
+
+- a browser-based 3D heliocentric solar-system simulator
 - the Sun, the eight major planets, and Pluto
-- physically scaled **orbital distances** using astronomical units (AU)
-- placeholder geometry for the Sun, planets, Saturn's rings, and the player cargo freighter
-- orbital motion generated from low-precision **J2000 Keplerian orbital elements**
-- a flyable placeholder ship with inertial movement and chase-camera controls
-- a HUD showing simulated date, time warp, ship speed, heliocentric radius, target, and range to target
-- target selection buttons for the Sun and all rendered bodies
-- a renderer configured with `logarithmicDepthBuffer` to better handle extreme scene scale
+- realistic orbital spacing in astronomical units (AU)
+- placeholder visible geometry for all celestial bodies and the freighter
+- low-precision J2000 Keplerian orbital motion for planetary positions
+- a flyable placeholder cargo freighter with inertial controls
+- a chase camera managed inside the R3F scene loop
+- a HUD for date, time warp, ship speed, heliocentric distance, selected target, and target range
+- target selection controls for the Sun and all currently rendered bodies
+- logarithmic depth buffering for large-scene depth stability
+- automated unit, integration, and component tests with Vitest
+- linting with ESLint and formatting with Prettier
 
-## Current implementation summary
+## Runtime and toolchain
 
-### Runtime and tooling
+### UI and rendering stack
 
-The app is scaffolded with Vite and written in TypeScript.
+The runtime stack now uses:
 
-Current package choices:
+- `react`
+- `react-dom`
+- `three`
+- `@react-three/fiber`
+- `@react-three/drei`
 
-- `vite` for development/build tooling
-- `typescript` for type safety
-- `three` for 3D rendering
-- `@types/three` for Three.js type declarations
+### Build and developer tooling
 
-Useful scripts in `package.json`:
+The project currently uses:
+
+- `vite` for local development and production builds
+- `typescript` for static typing
+- `vitest` for the test runner
+- `@testing-library/react` and related helpers for React test coverage
+- `eslint` for linting
+- `prettier` for formatting
+
+### Current scripts
+
+The repository now exposes these useful scripts:
 
 - `npm run dev`
 - `npm run build`
 - `npm run preview`
+- `npm run lint`
+- `npm run format`
+- `npm run format:check`
+- `npm test`
+- `npm run test:coverage`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run test:component`
 
-### Main scene setup
+## Structural changes
 
-The scene is assembled in `src/main.ts` and currently contains:
+### React application entry
 
-- a `WebGLRenderer` with antialiasing and `logarithmicDepthBuffer: true`
-- a perspective camera with a very small near plane and large far plane to support AU-scale navigation
-- ambient lighting plus a point light at the Sun
-- a simple grid helper for spatial orientation
-- a procedural starfield using `Points`
-- placeholder meshes for the Sun, each body, the ship, and the target marker
-- orbit lines generated from sampled orbital positions
+The app is now mounted through `src/main.tsx` using React DOM's `createRoot` API.
 
-### Orbital model
+### Top-level composition
 
-Orbital values are stored in `src/solar-data.ts`.
+`src/App.tsx` now composes the application from React components instead of injecting a large HTML string into the page.
 
-Each body currently includes:
+High-level responsibilities are split into:
 
-- name and kind
-- placeholder color
-- real radius in kilometers
-- exaggerated display radius in AU for visibility
-- orbit color
-- sidereal orbital period in days
-- low-precision J2000 orbital element series with base value and linear rate
+- app-level UI state in `App.tsx`
+- scene rendering and per-frame simulation in `src/components/SimulatorCanvas.tsx`
+- panel components for metrics, controls, and legend display
+- pure formatting helpers in `src/simulation/formatters.ts`
 
-Orbital positions are computed in `src/orbital-mechanics.ts` by:
+### Scene implementation
 
-1. converting wall-clock time to Julian date
-2. evaluating time-varying orbital elements at the selected date
-3. solving Kepler's equation iteratively for eccentric anomaly
-4. converting orbital-plane coordinates into heliocentric 3D space
-5. sampling orbit curves for rendering
+The 3D scene is now rendered through `@react-three/fiber`'s `Canvas`.
 
-This gives the prototype more realistic motion than circular placeholder orbits while keeping the implementation lightweight.
+The current scene uses:
 
-### Flight and camera model
+- React Three Fiber for renderer/camera lifecycle
+- Drei `Stars` for the background starfield
+- Drei `Line` for orbit path rendering
+- direct Three.js math and object manipulation inside the scene loop where it remains the clearest option
 
-The ship is currently a gameplay-friendly placeholder freighter, not a full Newtonian spacecraft model.
+This keeps the simulator declarative at the composition level while still using imperative Three.js updates for high-frequency simulation work.
 
-Current behavior:
+## Simulation model
 
-- `W`, `A`, `S`, `D` for forward/strafe thrust
+### Solar-system data
+
+`src/solar-data.ts` remains the source of body definitions, including:
+
+- body names and kinds
+- placeholder colors
+- real radii in kilometers
+- exaggerated display radii in AU
+- orbit colors
+- sidereal periods
+- low-precision orbital element series
+
+### Orbital mechanics
+
+`src/orbital-mechanics.ts` still handles:
+
+1. Julian date conversion
+2. time-varying orbital element evaluation
+3. Kepler equation solving
+4. orbital-plane to heliocentric 3D coordinate conversion
+5. orbit sampling for path rendering
+
+The physics model for the planets remains intentionally lightweight but grounded in realistic orbital structure.
+
+### Ship behavior
+
+The player freighter still uses an accessible inertial flight model rather than full gravity-driven mission planning.
+
+Current controls include:
+
+- `W`, `A`, `S`, `D` for forward and lateral thrust
 - `Q`, `E` for vertical thrust
 - `Shift` for boost
-- `Space` for rapid dampening
-- mouse drag to rotate ship heading
-- mouse wheel for chase-camera distance
-- `[` and `]` or on-screen buttons for time-warp changes
+- `Space` for dampening
+- drag to rotate heading
+- mouse wheel to adjust chase-camera distance
+- `[` and `]` to change time warp
 
-The camera follows from behind the ship and looks toward a forward chase target. This keeps the prototype usable before introducing cockpit mode, autopilot, or map-navigation tools.
+## Visual and scaling approach
 
-### Visual scaling decisions
+The current implementation continues to preserve the established scaling rules:
 
-The implementation currently mixes two kinds of scale intentionally:
+- **distances** are meaningful and represented in AU
+- **body sizes** remain exaggerated for playability and readability
 
-- **distances** are treated as physically meaningful and measured in AU
-- **object sizes** are exaggerated so bodies remain visible across interplanetary distances
+That means the app is still best understood as a navigable solar-system map rather than a literal diameter-to-distance physical scale model.
 
-This means the simulation is suitable as a navigable systems map, not yet as a strict one-to-one physical visualization of both size and distance simultaneously.
+## Current file layout highlights
 
-## Files added for the prototype
+Important current files include:
 
-- `src/main.ts` — scene composition, controls, HUD, animation loop
-- `src/solar-data.ts` — solar-system body definitions and orbital data
-- `src/orbital-mechanics.ts` — orbital math utilities and orbit sampling
-- `src/style.css` — full-screen simulator UI styling
-- `index.html` — app entry point metadata
+- `src/main.tsx` — React entry point
+- `src/App.tsx` — top-level app composition and UI state
+- `src/components/SimulatorCanvas.tsx` — R3F canvas and scene update loop
+- `src/components/MetricsPanel.tsx` — HUD metrics and time controls
+- `src/components/ControlPanel.tsx` — flight controls summary and target selection UI
+- `src/components/LegendPanel.tsx` — orbital reference panel
+- `src/simulation/formatters.ts` — UI display formatting helpers
+- `src/simulation/types.ts` — shared simulation/UI types and time-warp constants
+- `src/solar-data.ts` — planetary data
+- `src/orbital-mechanics.ts` — orbital computation utilities
+- `vite.config.ts` — Vite and Vitest configuration
+- `eslint.config.mjs` — ESLint configuration
+- `.prettierrc.json` — Prettier configuration
 
-## What was verified
+## Testing strategy
 
-The prototype was verified by:
+The repository now includes a Vitest-based test suite organized into three explicit categories:
 
-- installing dependencies successfully
-- running a production build successfully with `npm run build`
-- loading the built app in a browser over a temporary local static server
-- confirming that the UI renders and target selection updates the HUD
+- `tests/unit` — pure logic tests for formatters and orbital calculations
+- `tests/component` — focused React component tests
+- `tests/integration` — application-level integration tests for React state wiring
 
-## Known limitations in this first draft
+End-to-end tests are intentionally not part of the current setup.
 
-- ship movement is inertial and arcade-leaning rather than a full gravity-driven orbital flight model
-- no moons, asteroid belts, stations, cargo systems, or mission gameplay yet
-- planets use placeholder materials and simple geometry instead of textured or modeled assets
-- orbital solution is a practical low-precision approximation, not a high-fidelity ephemeris
-- there is no save/load, route planner, autopilot, or map overlay yet
+## What was verified in this migration
 
-## Good next steps
+The current implementation has been verified with:
 
-1. replace placeholder bodies and ship with GLTF assets and texture maps
-2. separate simulation units from display units more explicitly
-3. add labels, minimap tools, and destination/course planning
-4. introduce optional autopilot and transfer-planning support
-5. expand the solar system with moons, belts, and points of interest
-6. add tests around orbital calculations and formatting helpers
+- `npm run lint`
+- `npm test`
+- `npm run build`
+
+All of the above passed during this migration.
+
+The production build still emits a non-fatal bundle-size warning, which is acceptable for the current prototype but worth revisiting later with code-splitting or asset strategy changes.
+
+## Known limitations
+
+- ship flight is still gameplay-friendly rather than fully Newtonian
+- body meshes are still placeholders
+- there are still no missions, cargo systems, stations, or local-space destination gameplay
+- orbital calculations are still a practical approximation rather than a high-fidelity ephemeris source
+- large-scene rendering works, but bundle size and scene modularization can still be improved further
+
+## Recommended next steps
+
+1. split scene logic further into smaller R3F systems and hooks
+2. add GLTF assets and texture pipelines for planets and ships
+3. introduce trajectory planning or assisted navigation
+4. expand automated test coverage around time controls and scene-side calculations
+5. consider code-splitting or lazy-loading for future heavy assets and scene features

@@ -24,16 +24,22 @@ function normalizeRadians(value: number): number {
   return wrapped < 0 ? wrapped + TAU : wrapped
 }
 
-function evaluateSeries(series: OrbitalElementSet, centuriesSinceJ2000: number): EvaluatedElements {
-  const evaluate = (entry: { base: number; rate: number }) => entry.base + entry.rate * centuriesSinceJ2000
+function evaluateSeries(
+  series: OrbitalElementSet,
+  centuriesSinceJ2000: number,
+): EvaluatedElements {
+  const evaluate = (entry: { base: number; rate: number }) =>
+    entry.base + entry.rate * centuriesSinceJ2000
 
   return {
     semiMajorAxisAu: evaluate(series.semiMajorAxisAu),
     eccentricity: evaluate(series.eccentricity),
     inclinationRad: evaluate(series.inclinationDeg) * DEG_TO_RAD,
     meanLongitudeRad: evaluate(series.meanLongitudeDeg) * DEG_TO_RAD,
-    longitudeOfPerihelionRad: evaluate(series.longitudeOfPerihelionDeg) * DEG_TO_RAD,
-    longitudeOfAscendingNodeRad: evaluate(series.longitudeOfAscendingNodeDeg) * DEG_TO_RAD,
+    longitudeOfPerihelionRad:
+      evaluate(series.longitudeOfPerihelionDeg) * DEG_TO_RAD,
+    longitudeOfAscendingNodeRad:
+      evaluate(series.longitudeOfAscendingNodeDeg) * DEG_TO_RAD,
   }
 }
 
@@ -42,7 +48,9 @@ function solveKepler(meanAnomalyRad: number, eccentricity: number): number {
 
   for (let iteration = 0; iteration < 8; iteration += 1) {
     const delta =
-      (eccentricAnomaly - eccentricity * Math.sin(eccentricAnomaly) - meanAnomalyRad) /
+      (eccentricAnomaly -
+        eccentricity * Math.sin(eccentricAnomaly) -
+        meanAnomalyRad) /
       (1 - eccentricity * Math.cos(eccentricAnomaly))
 
     eccentricAnomaly -= delta
@@ -55,10 +63,15 @@ function solveKepler(meanAnomalyRad: number, eccentricity: number): number {
   return eccentricAnomaly
 }
 
-export function getHeliocentricPositionAu(body: SolarBodyDefinition, date: Date): Vector3 {
+export function getHeliocentricPositionAu(
+  body: SolarBodyDefinition,
+  date: Date,
+): Vector3 {
   const centuriesSinceJ2000 = (getJulianDate(date) - J2000_JULIAN_DATE) / 36_525
   const elements = evaluateSeries(body.elements, centuriesSinceJ2000)
-  const meanAnomaly = normalizeRadians(elements.meanLongitudeRad - elements.longitudeOfPerihelionRad)
+  const meanAnomaly = normalizeRadians(
+    elements.meanLongitudeRad - elements.longitudeOfPerihelionRad,
+  )
   const eccentricAnomaly = solveKepler(meanAnomaly, elements.eccentricity)
   const trueAnomaly =
     2 *
@@ -69,7 +82,9 @@ export function getHeliocentricPositionAu(body: SolarBodyDefinition, date: Date)
 
   const argumentOfPerihelion =
     elements.longitudeOfPerihelionRad - elements.longitudeOfAscendingNodeRad
-  const orbitalRadius = elements.semiMajorAxisAu * (1 - elements.eccentricity * Math.cos(eccentricAnomaly))
+  const orbitalRadius =
+    elements.semiMajorAxisAu *
+    (1 - elements.eccentricity * Math.cos(eccentricAnomaly))
   const angle = argumentOfPerihelion + trueAnomaly
 
   const cosAscending = Math.cos(elements.longitudeOfAscendingNodeRad)
@@ -80,9 +95,11 @@ export function getHeliocentricPositionAu(body: SolarBodyDefinition, date: Date)
   const sinAngle = Math.sin(angle)
 
   const xStandard =
-    orbitalRadius * (cosAscending * cosAngle - sinAscending * sinAngle * cosInclination)
+    orbitalRadius *
+    (cosAscending * cosAngle - sinAscending * sinAngle * cosInclination)
   const yStandard =
-    orbitalRadius * (sinAscending * cosAngle + cosAscending * sinAngle * cosInclination)
+    orbitalRadius *
+    (sinAscending * cosAngle + cosAscending * sinAngle * cosInclination)
   const zStandard = orbitalRadius * (sinAngle * sinInclination)
 
   return new Vector3(xStandard, zStandard, yStandard)
@@ -111,15 +128,19 @@ export function buildOrbitPoints(
         Math.sqrt(1 + elements.eccentricity) * Math.sin(eccentricAnomaly / 2),
         Math.sqrt(1 - elements.eccentricity) * Math.cos(eccentricAnomaly / 2),
       )
-    const orbitalRadius = elements.semiMajorAxisAu * (1 - elements.eccentricity * Math.cos(eccentricAnomaly))
+    const orbitalRadius =
+      elements.semiMajorAxisAu *
+      (1 - elements.eccentricity * Math.cos(eccentricAnomaly))
     const angle = argumentOfPerihelion + trueAnomaly
     const cosAngle = Math.cos(angle)
     const sinAngle = Math.sin(angle)
 
     const xStandard =
-      orbitalRadius * (cosAscending * cosAngle - sinAscending * sinAngle * cosInclination)
+      orbitalRadius *
+      (cosAscending * cosAngle - sinAscending * sinAngle * cosInclination)
     const yStandard =
-      orbitalRadius * (sinAscending * cosAngle + cosAscending * sinAngle * cosInclination)
+      orbitalRadius *
+      (sinAscending * cosAngle + cosAscending * sinAngle * cosInclination)
     const zStandard = orbitalRadius * (sinAngle * sinInclination)
 
     points.push(new Vector3(xStandard, zStandard, yStandard))

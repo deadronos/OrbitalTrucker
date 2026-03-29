@@ -1,6 +1,6 @@
 # ADR 001: Use Vite, TypeScript, and Three.js for the prototype stack
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR 003
 - **Date:** 2026-03-29
 
 ## Context
@@ -37,4 +37,4 @@ The prototype is built with:
 
 ## Follow-up
 
-As the project grows, the scene code can be split into focused modules such as rendering, input, simulation state, UI formatting, and data loading without changing the stack choice.
+The prototype validated the idea successfully, but the implementation is now being migrated to a React-based architecture built on the same rendering foundation.
