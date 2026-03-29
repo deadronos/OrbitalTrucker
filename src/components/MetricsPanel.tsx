@@ -11,7 +11,7 @@ import { Card } from './ui/card'
 
 type MetricsPanelProps = {
   metrics: SimulationMetrics
-  selectedBodyName: string
+  selectedLocationName: string
   timeWarpDaysPerSecond: number
   onSlowerTime: () => void
   onPauseToggle: () => void
@@ -20,7 +20,7 @@ type MetricsPanelProps = {
 
 export function MetricsPanel({
   metrics,
-  selectedBodyName,
+  selectedLocationName,
   timeWarpDaysPerSecond,
   onSlowerTime,
   onPauseToggle,
@@ -54,7 +54,7 @@ export function MetricsPanel({
           label="Heliocentric radius"
           value={formatDistanceAu(metrics.heliocentricDistanceAu)}
         />
-        <MetricCell label="Target" value={selectedBodyName} />
+        <MetricCell label="Destination" value={selectedLocationName} />
         <MetricCell
           label="Range"
           value={formatDistanceAu(metrics.targetDistanceAu)}

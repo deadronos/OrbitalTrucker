@@ -1,4 +1,12 @@
-import { lazy, Suspense, useEffect, useMemo, useState, type ComponentType, type LazyExoticComponent } from 'react'
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useMemo,
+  useState,
+  type ComponentType,
+  type LazyExoticComponent,
+} from 'react'
 
 import { ControlPanel } from './components/ControlPanel'
 import { LegendPanel } from './components/LegendPanel'
@@ -9,8 +17,13 @@ import {
   type SimulationMetrics,
 } from './simulation/types'
 import type { SimulatorCanvasProps } from './components/SimulatorCanvas'
-import { SUN, SOLAR_BODIES } from './solar-data'
+import { SOLAR_BODIES } from './solar-data'
 import { Card } from './components/ui/card'
+import {
+  DEFAULT_LOCATION_ID,
+  getLocationById,
+  getLocationCatalog,
+} from './world/locations'
 
 /**
  * Heavy 3D engine chunk (Three.js, R3F, Drei, all scene components) is loaded
@@ -27,14 +40,18 @@ type AppShellProps = {
 
 export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
   const [metrics, setMetrics] = useState<SimulationMetrics>(INITIAL_METRICS)
-  const [selectedBodyName, setSelectedBodyName] = useState('Earth')
+  const [selectedLocationId, setSelectedLocationId] =
+    useState(DEFAULT_LOCATION_ID)
   const [timeWarpIndex, setTimeWarpIndex] = useState(3)
   const [timePaused, setTimePaused] = useState(false)
   const [autoOrientTrigger, setAutoOrientTrigger] = useState(0)
 
-  const targetNames = useMemo(
-    () => [SUN.name, ...SOLAR_BODIES.map((body) => body.name)],
-    [],
+  const destinations = useMemo(() => getLocationCatalog(), [])
+  const selectedLocation = useMemo(
+    () =>
+      getLocationById(selectedLocationId) ??
+      getLocationById(DEFAULT_LOCATION_ID)!,
+    [selectedLocationId],
   )
   const legendBodies = useMemo(
     () =>
@@ -73,7 +90,7 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
       <Suspense fallback={<div className="absolute inset-0 bg-[#020409]" />}>
         <SceneComponent
           autoOrientTrigger={autoOrientTrigger}
-          selectedBodyName={selectedBodyName}
+          selectedLocationId={selectedLocation.id}
           timePaused={timePaused}
           timeWarpIndex={timeWarpIndex}
           onMetricsChange={setMetrics}
@@ -96,14 +113,14 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
             </span>
           </div>
           <p className="mt-2 text-sm leading-6 text-slate-300">
-            The simulator stays full-screen; the HUD keeps navigation, telemetry,
-            and orbit reference within quick-glance range.
+            The simulator stays full-screen; the HUD keeps navigation,
+            telemetry, and orbit reference within quick-glance range.
           </p>
         </Card>
 
         <MetricsPanel
           metrics={metrics}
-          selectedBodyName={selectedBodyName}
+          selectedLocationName={selectedLocation.name}
           timeWarpDaysPerSecond={
             timePaused ? 0 : TIME_WARP_STEPS[timeWarpIndex]
           }
@@ -123,10 +140,10 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
         />
 
         <ControlPanel
-          selectedBodyName={selectedBodyName}
-          targetNames={targetNames}
+          destinations={destinations}
           onOrientToTarget={() => setAutoOrientTrigger((n) => n + 1)}
-          onSelectBody={setSelectedBodyName}
+          onSelectLocation={setSelectedLocationId}
+          selectedLocationId={selectedLocation.id}
         />
 
         <LegendPanel bodies={legendBodies} />
