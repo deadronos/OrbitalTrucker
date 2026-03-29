@@ -1,5 +1,5 @@
+import { useEffect, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { useRef } from 'react'
 import { Group, Quaternion, Vector3 } from 'three'
 
 import {
@@ -49,6 +49,17 @@ export function useShipPhysics(
     shipRef.current?.setRotationFromQuaternion(result.quaternion)
     shipRef.current?.position.copy(shipStateRef.current.position)
   })
+
+  // Toggle rotation assist when F is pressed (edge-detected via keydown).
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code === 'KeyF') {
+        shipStateRef.current.rotationAssist = !shipStateRef.current.rotationAssist
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   return {
     shipStateRef,

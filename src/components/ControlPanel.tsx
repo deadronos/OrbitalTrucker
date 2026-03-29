@@ -29,7 +29,10 @@ export function ControlPanel({
         <ControlHint keys={['W', 'A', 'S', 'D']} label="Thrust / strafe" />
         <ControlHint keys={['Q', 'E']} label="Vertical thrusters" />
         <ControlHint keys={['Shift']} label="Boost" />
-        <ControlHint keys={['Space']} label="Dampeners" />
+        <ControlHint keys={['Space']} label="Kill velocity" />
+        <ControlHint keys={['←', '→', '↑', '↓']} label="Rotation thrusters" />
+        <ControlHint keys={['R']} label="Kill rotation" />
+        <ControlHint keys={['F']} label="Toggle rotation assist" />
         <ControlHint keys={['Drag']} label="Rotate heading" />
         <ControlHint keys={['Wheel']} label="Chase zoom" />
         <ControlHint keys={['[', ']']} label="Time warp" />
