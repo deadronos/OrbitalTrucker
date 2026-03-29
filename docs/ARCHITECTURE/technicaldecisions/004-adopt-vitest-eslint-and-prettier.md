@@ -31,6 +31,33 @@ The test suite will be organized to explicitly include:
 
 End-to-end tests are intentionally deferred for now.
 
+### Unit test scope
+
+Unit tests cover pure, framework-free modules and the mathematical logic
+extracted from React hooks. Specifically:
+
+- **Orbital mechanics** — `getJulianDate`, `getHeliocentricPositionAu`, and
+  `buildOrbitPoints` for all solar bodies, verified against known distance
+  ranges.
+- **Physics** — `stepShipPhysics`: Newtonian thrust, braking, angular
+  velocity, rotation assist, and pitch clamping.
+- **Trajectory** — `planRoute` and `directionToYawPitch`: bearing, ETA, and
+  YXZ Euler conversion.
+- **Formatters** — `formatDistanceAu`, `formatShipSpeedKmPerSecond`,
+  `formatTimeWarp`, `formatUtcDate`, and `formatEtaDays`.
+- **Time-warp / date progression** — `TIME_WARP_STEPS` constants,
+  `INITIAL_SIMULATED_DATE`, the millisecond-advance formula used by
+  `useTimeSimulation`, and the 7-day orbit-epoch accumulator threshold. These
+  tests exercise the pure arithmetic layer without requiring a Three.js render
+  loop.
+- **Scene-side calculations** — heliocentric positions and orbit-path samples
+  for all solar bodies (Mercury through Pluto) via the `orbital-mechanics`
+  facade, Julian date arithmetic, and verification that body positions change
+  as simulated time advances. Planet ordering by distance is verified for the
+  8 classical planets Mercury–Neptune (Pluto is excluded from this particular
+  check because its highly eccentric orbit means it can be closer than Neptune
+  near perihelion).
+
 ## Consequences
 
 ### Positive
