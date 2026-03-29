@@ -1,7 +1,13 @@
 :root {
   color-scheme: dark;
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color: #edf4ff;
@@ -43,14 +49,19 @@ kbd {
     linear-gradient(180deg, rgba(2, 4, 9, 0.78), rgba(2, 4, 9, 0.98));
 }
 
-#sim-canvas {
+.sim-canvas {
+  position: absolute !important;
+  inset: 0;
+}
+
+.sim-canvas canvas {
   display: block;
-  width: 100%;
-  height: 100%;
+  width: 100% !important;
+  height: 100% !important;
   cursor: grab;
 }
 
-#sim-canvas:active {
+.sim-canvas canvas:active {
   cursor: grabbing;
 }
 
@@ -165,7 +176,11 @@ strong {
 button {
   appearance: none;
   border: 1px solid rgba(132, 181, 255, 0.24);
-  background: linear-gradient(180deg, rgba(50, 84, 128, 0.75), rgba(24, 42, 67, 0.8));
+  background: linear-gradient(
+    180deg,
+    rgba(50, 84, 128, 0.75),
+    rgba(24, 42, 67, 0.8)
+  );
   color: #f5f9ff;
   border-radius: 999px;
   padding: 0.55rem 0.95rem;
@@ -186,7 +201,11 @@ button:active {
 }
 
 .target-chip.active {
-  background: linear-gradient(180deg, rgba(95, 155, 255, 0.9), rgba(45, 96, 198, 0.9));
+  background: linear-gradient(
+    180deg,
+    rgba(95, 155, 255, 0.9),
+    rgba(45, 96, 198, 0.9)
+  );
   border-color: rgba(196, 223, 255, 0.75);
   box-shadow: 0 0 0 1px rgba(196, 223, 255, 0.18);
 }
