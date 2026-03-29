@@ -9,21 +9,22 @@ import {
   Vector3,
 } from 'three'
 
+import { useAutoOrient } from '../hooks/useAutoOrient'
+import { useBodyPositions } from '../hooks/useBodyPositions'
 import { useCameraFollow } from '../hooks/useCameraFollow'
 import { useKeyboardInput } from '../hooks/useKeyboardInput'
 import { usePointerInput } from '../hooks/usePointerInput'
 import { useShipPhysics } from '../hooks/useShipPhysics'
 import { useSimulationMetrics } from '../hooks/useSimulationMetrics'
 import { useTimeSimulation } from '../hooks/useTimeSimulation'
-import { getHeliocentricPositionAu } from '../orbital-mechanics'
 import { SceneBackground } from '../scene/SceneBackground'
 import { ShipMesh } from '../scene/ShipMesh'
-import { SolarBodies, type BodyRefs } from '../scene/SolarBodies'
+import { SolarBodies } from '../scene/SolarBodies'
 import { SunMesh } from '../scene/SunMesh'
 import { TargetMarker } from '../scene/TargetMarker'
 import { TrajectoryLine } from '../scene/TrajectoryLine'
 import { type SimulationMetrics } from '../simulation/types'
-import { directionToYawPitch, planRoute } from '../simulation/trajectory'
+import { planRoute } from '../simulation/trajectory'
 import { SOLAR_BODIES, SUN } from '../solar-data'
 
 export type SimulatorCanvasProps = {
@@ -50,7 +51,7 @@ function SceneContents({
     useShipPhysics(keyStateRef)
   usePointerInput(gl.domElement, shipStateRef)
 
-  // Simulation hooks
+  // Simulation hooks (registered in frame-execution order)
   const { simulatedDateRef, orbitEpoch } = useTimeSimulation(
     timeWarpIndex,
     timePaused,
@@ -58,9 +59,7 @@ function SceneContents({
   useCameraFollow(shipStateRef, forwardRef, upRef)
   const { report } = useSimulationMetrics(onMetricsChange)
 
-  // Shared state for body positions (written each frame, read by marker + metrics)
-  const bodyMeshRefs = useRef<Record<string, BodyRefs>>({})
-  const bodyPositionsRef = useRef<Map<string, Vector3>>(new Map())
+  // Refs shared across hooks and the orchestrator frame
   const targetMarkerRef = useRef<Mesh>(null)
   const trajectoryLineRef = useRef<Line>(null)
   const selectedBodyNameRef = useRef(selectedBodyName)
@@ -70,53 +69,20 @@ function SceneContents({
     selectedBodyNameRef.current = selectedBodyName
   }, [selectedBodyName])
 
-  // Auto-orient: when autoOrientTrigger changes, rotate the ship to face the target.
-  const prevAutoOrientTriggerRef = useRef(autoOrientTrigger)
-  useEffect(() => {
-    if (autoOrientTrigger === prevAutoOrientTriggerRef.current) return
-    prevAutoOrientTriggerRef.current = autoOrientTrigger
+  // Body positions hook — owns mesh refs, updates transforms, and exposes the
+  // latest positions map. Registered after useTimeSimulation so it reads the
+  // already-advanced simulated date each frame.
+  const { bodyMeshRefs, bodyPositionsRef } = useBodyPositions(simulatedDateRef)
 
-    const targetPos =
-      selectedBodyNameRef.current === SUN.name
-        ? zeroVector
-        : (bodyPositionsRef.current.get(selectedBodyNameRef.current) ??
-          zeroVector)
+  // Auto-orient hook — rotates the ship to face the target on demand.
+  useAutoOrient(autoOrientTrigger, selectedBodyNameRef, shipStateRef, bodyPositionsRef)
 
-    const direction = new Vector3().subVectors(
-      targetPos,
-      shipStateRef.current.position,
-    )
-    if (direction.length() > 0) {
-      direction.normalize()
-      const { yaw, pitch } = directionToYawPitch(direction)
-      shipStateRef.current.yaw = yaw
-      shipStateRef.current.pitch = Math.max(-1.35, Math.min(1.35, pitch))
-    }
-  }, [autoOrientTrigger, shipStateRef, zeroVector])
-
-  // Per-frame: update body positions, target marker, trajectory line, and report metrics.
-  // This useFrame fires after the hook frames (time, ship, camera) because
-  // hooks are registered before child components in mount order.
+  // Per-frame: drive target marker, trajectory line, and metrics.
+  // Fires after the hook frames (time → ship → camera → body positions)
+  // because hooks are registered before this subscription in mount order.
   useFrame((state, delta) => {
     const realDelta = Math.min(delta, 0.05)
     const date = simulatedDateRef.current
-
-    for (const body of SOLAR_BODIES) {
-      const position = getHeliocentricPositionAu(body, date)
-      const refs = bodyMeshRefs.current[body.name]
-
-      refs?.mesh?.position.copy(position)
-
-      if (refs?.mesh) {
-        refs.mesh.rotation.y += 0.0025
-      }
-
-      if (refs?.ring) {
-        refs.ring.rotation.x = Math.PI / 2.35
-      }
-
-      bodyPositionsRef.current.set(body.name, position)
-    }
 
     const selectedName = selectedBodyNameRef.current
     const selectedTargetPosition =
