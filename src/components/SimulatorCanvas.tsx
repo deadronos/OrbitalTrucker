@@ -203,3 +203,6 @@ export function SimulatorCanvas(props: SimulatorCanvasProps) {
     </Canvas>
   )
 }
+
+// Default export enables React.lazy(() => import('./SimulatorCanvas')) in App.tsx.
+export default SimulatorCanvas
