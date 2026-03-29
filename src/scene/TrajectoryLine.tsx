@@ -11,7 +11,7 @@ type TrajectoryLineProps = {
  */
 export function TrajectoryLine({ lineRef }: TrajectoryLineProps) {
   return (
-    <line ref={lineRef}>
+    <line ref={lineRef as unknown as React.Ref<SVGLineElement>}>
       <bufferGeometry>
         <bufferAttribute
           args={[new Float32Array(6), 3]}
