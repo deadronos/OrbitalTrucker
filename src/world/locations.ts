@@ -1,5 +1,9 @@
 import { Vector3 } from 'three'
 
+import {
+  getMoonHeliocentricPositionAu,
+  type MoonEphemerisId,
+} from '../ephemeris/moons'
 import { getHeliocentricPositionAu } from '../orbital-mechanics'
 import { SOLAR_BODIES, SUN } from '../solar-data'
 
@@ -16,6 +20,7 @@ export type LocationKind =
 export type LocationPositionSource =
   | { type: 'origin' }
   | { type: 'solar-body'; bodyName: string }
+  | { type: 'moon-body'; moonId: MoonEphemerisId }
   | {
       type: 'anchored-offset'
       anchorLocationId: string
@@ -41,13 +46,6 @@ export type LocationPositionContext = {
   date: Date
   resolveSolarBodyPosition: SolarBodyPositionResolver
 }
-
-const STATIC_OFFSETS_AU = {
-  moon: 0.00257,
-  europa: 0.00449,
-  ganymede: 0.00715,
-  callisto: 0.01258,
-} as const
 
 const SOLAR_BODY_MARKER_SCALES = new Map(
   SOLAR_BODIES.map((body) => [body.name, body.displayRadiusAu]),
@@ -82,11 +80,7 @@ export const LOCATION_CATALOG: readonly LocationDefinition[] = [
     kind: 'moon',
     parentId: 'earth',
     markerScaleAu: 0.0032,
-    position: {
-      type: 'anchored-offset',
-      anchorLocationId: 'earth',
-      offsetAu: [STATIC_OFFSETS_AU.moon, 0, 0],
-    },
+    position: { type: 'moon-body', moonId: 'moon' },
   },
   {
     id: 'earth-orbit-freight-ring',
@@ -160,11 +154,7 @@ export const LOCATION_CATALOG: readonly LocationDefinition[] = [
     kind: 'moon',
     parentId: 'jupiter',
     markerScaleAu: 0.0027,
-    position: {
-      type: 'anchored-offset',
-      anchorLocationId: 'jupiter',
-      offsetAu: [STATIC_OFFSETS_AU.europa, 0, 0],
-    },
+    position: { type: 'moon-body', moonId: 'europa' },
   },
   {
     id: 'europa-research-dock',
@@ -186,11 +176,7 @@ export const LOCATION_CATALOG: readonly LocationDefinition[] = [
     kind: 'moon',
     parentId: 'jupiter',
     markerScaleAu: 0.003,
-    position: {
-      type: 'anchored-offset',
-      anchorLocationId: 'jupiter',
-      offsetAu: [STATIC_OFFSETS_AU.ganymede, 0, 0],
-    },
+    position: { type: 'moon-body', moonId: 'ganymede' },
   },
   {
     id: 'ganymede-transfer-yard',
@@ -212,11 +198,7 @@ export const LOCATION_CATALOG: readonly LocationDefinition[] = [
     kind: 'moon',
     parentId: 'jupiter',
     markerScaleAu: 0.0031,
-    position: {
-      type: 'anchored-offset',
-      anchorLocationId: 'jupiter',
-      offsetAu: [STATIC_OFFSETS_AU.callisto, 0, 0],
-    },
+    position: { type: 'moon-body', moonId: 'callisto' },
   },
   {
     id: 'callisto-freight-depot',
@@ -322,6 +304,13 @@ function resolveLocation(
       return context.resolveSolarBodyPosition(
         location.position.bodyName,
         context.date,
+      )
+
+    case 'moon-body':
+      return getMoonHeliocentricPositionAu(
+        location.position.moonId,
+        context.date,
+        context.resolveSolarBodyPosition,
       )
 
     case 'anchored-offset': {
