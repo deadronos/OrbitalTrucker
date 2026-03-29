@@ -1,5 +1,7 @@
 import {
+  formatAutonomousPhase,
   formatDistanceAu,
+  formatDurationSeconds,
   formatShipSpeedKmPerSecond,
   formatTimeWarp,
   formatUtcDate,
@@ -31,5 +33,18 @@ describe('formatters', () => {
     expect(formatUtcDate(new Date('2026-03-29T12:00:00.000Z'))).toBe(
       'Sun, 29 Mar 2026 12:00:00 UTC',
     )
+  })
+
+  it('formats travel durations across short and long horizons', () => {
+    expect(formatDurationSeconds(45)).toBe('45 s')
+    expect(formatDurationSeconds(7_200)).toBe('2.0 h')
+    expect(formatDurationSeconds(14 * 86_400)).toBe('14.0 d')
+  })
+
+  it('formats autonomous guidance phases for the HUD', () => {
+    expect(formatAutonomousPhase('acquiring')).toBe('Acquiring course')
+    expect(formatAutonomousPhase('cruising')).toBe('Cruising')
+    expect(formatAutonomousPhase('braking')).toBe('Braking')
+    expect(formatAutonomousPhase('arrived')).toBe('Arrived')
   })
 })

@@ -101,7 +101,7 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
                 OrbitalTrucker
               </p>
               <h1 className="mt-1 text-lg font-semibold tracking-tight text-slate-50">
-                Autonomous bridge HUD
+                Destination bridge
               </h1>
             </div>
             <span className="rounded-full border border-cyan-400/15 bg-cyan-400/10 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-cyan-100/90">
@@ -109,14 +109,13 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
             </span>
           </div>
           <p className="mt-2 text-sm leading-6 text-slate-300">
-            Route selection, live planner telemetry, and time management stay
-            in reach while the freighter updates course on its own.
+            Select destinations, watch intercept and travel state, and manage
+            simulation time while the freighter reroutes on its own.
           </p>
         </Card>
 
         <MetricsPanel
           metrics={metrics}
-          selectedLocationName={selectedLocation.name}
           timeWarpDaysPerSecond={
             timePaused ? 0 : TIME_WARP_STEPS[timeWarpIndex]
           }
@@ -137,8 +136,12 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
 
         <ControlPanel
           destinations={destinations}
+          metrics={metrics}
           onSelectLocation={setSelectedLocationId}
           selectedLocationId={selectedLocation.id}
+          timeWarpDaysPerSecond={
+            timePaused ? 0 : TIME_WARP_STEPS[timeWarpIndex]
+          }
         />
 
         <LegendPanel bodies={legendBodies} />

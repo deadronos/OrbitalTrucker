@@ -21,8 +21,13 @@ function StubScene({
         selectedLocationId === 'pluto'
           ? 'future-intercept'
           : 'current-position',
+      autonomousPhase:
+        selectedLocationId === 'pluto' ? 'cruising' : 'acquiring',
       targetBearingDeg: 45,
       etaDays: selectedLocationId === 'pluto' ? 365 : null,
+      interceptTimeSeconds:
+        selectedLocationId === 'pluto' ? 100 * 86_400 : null,
+      targetMotionDuringInterceptAu: selectedLocationId === 'pluto' ? 1.45 : 0,
     })
   }, [onMetricsChange, selectedLocationId])
 
@@ -39,12 +44,18 @@ describe('AppShell', () => {
     expect(screen.getByText('42.4 km/s')).toBeInTheDocument()
     expect(screen.getByText('2.03 AU')).toBeInTheDocument()
     expect(screen.getByText('2.08 AU')).toBeInTheDocument()
+    expect(screen.getByText('Acquiring course')).toBeInTheDocument()
 
-    await user.selectOptions(screen.getByLabelText('Destination'), 'pluto')
+    await user.selectOptions(
+      screen.getByLabelText('Current destination'),
+      'pluto',
+    )
 
     expect(screen.getByText('34.95 AU')).toBeInTheDocument()
     expect(screen.getByText('36.40 AU')).toBeInTheDocument()
     expect(screen.getByText('Future intercept')).toBeInTheDocument()
+    expect(screen.getByText('Cruising')).toBeInTheDocument()
+    expect(screen.getByText('100.0 d')).toBeInTheDocument()
     expect(screen.getByTestId('destination-select')).toHaveValue('pluto')
   })
 })

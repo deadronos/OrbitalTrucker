@@ -58,7 +58,7 @@ function SceneContents({
   // already-advanced simulated date each frame.
   const { bodyMeshRefs, bodyPositionsRef } = useBodyPositions(simulatedDateRef)
 
-  const { plannerResultRef } = useAutonomousGuidance({
+  const { guidanceResultRef, plannerResultRef } = useAutonomousGuidance({
     controlInputRef,
     selectedLocationIdRef,
     shipStateRef,
@@ -105,6 +105,7 @@ function SceneContents({
       shipState.position,
       shipState.velocity,
       plan,
+      guidanceResultRef.current,
     )
   })
 

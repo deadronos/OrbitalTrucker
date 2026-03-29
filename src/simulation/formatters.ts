@@ -1,4 +1,5 @@
 import { ASTRONOMICAL_UNIT_KM } from '../solar-data'
+import type { AutonomousGuidancePhase } from './autonomous-guidance'
 import type { TransferPlannerStatus } from './transfer-planner'
 
 export function formatDistanceAu(distanceAu: number): string {
@@ -47,6 +48,45 @@ export function formatEtaDays(etaDays: number | null): string {
   }
 
   return `${(etaDays / 365.25).toFixed(1)} yr`
+}
+
+export function formatDurationSeconds(durationSeconds: number | null): string {
+  if (durationSeconds === null) {
+    return '—'
+  }
+
+  if (durationSeconds < 60) {
+    return `${durationSeconds.toFixed(0)} s`
+  }
+
+  if (durationSeconds < 3_600) {
+    return `${(durationSeconds / 60).toFixed(0)} min`
+  }
+
+  const durationDays = durationSeconds / 86_400
+
+  if (durationDays < 1) {
+    return `${(durationSeconds / 3_600).toFixed(1)} h`
+  }
+
+  if (durationDays < 365.25) {
+    return `${durationDays.toFixed(1)} d`
+  }
+
+  return `${(durationDays / 365.25).toFixed(1)} yr`
+}
+
+export function formatAutonomousPhase(phase: AutonomousGuidancePhase): string {
+  switch (phase) {
+    case 'acquiring':
+      return 'Acquiring course'
+    case 'cruising':
+      return 'Cruising'
+    case 'braking':
+      return 'Braking'
+    case 'arrived':
+      return 'Arrived'
+  }
 }
 
 export function formatTransferPlannerStatus(
