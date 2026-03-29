@@ -2,12 +2,14 @@ type ControlPanelProps = {
   selectedBodyName: string
   targetNames: string[]
   onSelectBody: (bodyName: string) => void
+  onOrientToTarget: () => void
 }
 
 export function ControlPanel({
   selectedBodyName,
   targetNames,
   onSelectBody,
+  onOrientToTarget,
 }: ControlPanelProps) {
   return (
     <section className="panel controls-panel">
@@ -35,6 +37,9 @@ export function ControlPanel({
           <kbd>[</kbd>
           <kbd>]</kbd> adjust time warp
         </li>
+        <li>
+          <kbd>T</kbd> orient to target
+        </li>
       </ul>
 
       <h2>Target tracking</h2>
@@ -56,6 +61,12 @@ export function ControlPanel({
             {targetName}
           </button>
         ))}
+      </div>
+
+      <div className="controls-row">
+        <button onClick={onOrientToTarget} type="button">
+          Orient to target
+        </button>
       </div>
     </section>
   )

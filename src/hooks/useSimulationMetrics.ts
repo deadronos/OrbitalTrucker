@@ -17,6 +17,8 @@ export function useSimulationMetrics(
     shipPosition: Vector3,
     velocity: Vector3,
     targetPosition: Vector3,
+    targetBearingDeg: number,
+    etaDays: number | null,
   ) => void
 } {
   const accumulatorRef = useRef(0)
@@ -33,6 +35,8 @@ export function useSimulationMetrics(
       shipPosition: Vector3,
       velocity: Vector3,
       targetPosition: Vector3,
+      targetBearingDeg: number,
+      etaDays: number | null,
     ) => {
       accumulatorRef.current += deltaSec
 
@@ -43,6 +47,8 @@ export function useSimulationMetrics(
           shipSpeedKmPerSecond: velocity.length() * ASTRONOMICAL_UNIT_KM,
           heliocentricDistanceAu: shipPosition.length(),
           targetDistanceAu: shipPosition.distanceTo(targetPosition),
+          targetBearingDeg,
+          etaDays,
         })
       }
     },

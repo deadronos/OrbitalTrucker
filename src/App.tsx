@@ -23,6 +23,7 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
   const [selectedBodyName, setSelectedBodyName] = useState('Earth')
   const [timeWarpIndex, setTimeWarpIndex] = useState(3)
   const [timePaused, setTimePaused] = useState(false)
+  const [autoOrientTrigger, setAutoOrientTrigger] = useState(0)
 
   const targetNames = useMemo(
     () => [SUN.name, ...SOLAR_BODIES.map((body) => body.name)],
@@ -48,6 +49,8 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
         setTimeWarpIndex((current) =>
           Math.min(TIME_WARP_STEPS.length - 1, current + 1),
         )
+      } else if (event.code === 'KeyT') {
+        setAutoOrientTrigger((n) => n + 1)
       }
     }
 
@@ -61,6 +64,7 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
   return (
     <div className="sim-shell">
       <SceneComponent
+        autoOrientTrigger={autoOrientTrigger}
         selectedBodyName={selectedBodyName}
         timePaused={timePaused}
         timeWarpIndex={timeWarpIndex}
@@ -107,6 +111,7 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
         <ControlPanel
           selectedBodyName={selectedBodyName}
           targetNames={targetNames}
+          onOrientToTarget={() => setAutoOrientTrigger((n) => n + 1)}
           onSelectBody={setSelectedBodyName}
         />
 
