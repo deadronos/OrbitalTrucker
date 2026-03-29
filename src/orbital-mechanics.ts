@@ -1,150 +1,44 @@
-import { Vector3 } from 'three'
+/**
+ * orbital-mechanics.ts
+ *
+ * Backward-compatible facade over the ephemeris provider abstraction.
+ *
+ * All position and orbit-path calculations are delegated to the default
+ * provider (`Vsop87EphemerisProvider`), which gives arc-minute accuracy for
+ * dates within ±500 years of J2000.  See `src/ephemeris/` for the full
+ * provider hierarchy.
+ *
+ * `getJulianDate` is kept as a public utility (used by tests).
+ */
+import type { Vector3 } from 'three'
 
-import type { OrbitalElementSet, SolarBodyDefinition } from './solar-data'
+import { defaultEphemerisProvider } from './ephemeris'
+import type { SolarBodyDefinition } from './solar-data'
 
-type EvaluatedElements = {
-  semiMajorAxisAu: number
-  eccentricity: number
-  inclinationRad: number
-  meanLongitudeRad: number
-  longitudeOfPerihelionRad: number
-  longitudeOfAscendingNodeRad: number
-}
-
-const J2000_JULIAN_DATE = 2_451_545
-const DEG_TO_RAD = Math.PI / 180
-const TAU = Math.PI * 2
-
+/** Converts a JavaScript Date to a Julian Date number. */
 export function getJulianDate(date: Date): number {
   return date.getTime() / 86_400_000 + 2_440_587.5
 }
 
-function normalizeRadians(value: number): number {
-  const wrapped = value % TAU
-  return wrapped < 0 ? wrapped + TAU : wrapped
-}
-
-function evaluateSeries(
-  series: OrbitalElementSet,
-  centuriesSinceJ2000: number,
-): EvaluatedElements {
-  const evaluate = (entry: { base: number; rate: number }) =>
-    entry.base + entry.rate * centuriesSinceJ2000
-
-  return {
-    semiMajorAxisAu: evaluate(series.semiMajorAxisAu),
-    eccentricity: evaluate(series.eccentricity),
-    inclinationRad: evaluate(series.inclinationDeg) * DEG_TO_RAD,
-    meanLongitudeRad: evaluate(series.meanLongitudeDeg) * DEG_TO_RAD,
-    longitudeOfPerihelionRad:
-      evaluate(series.longitudeOfPerihelionDeg) * DEG_TO_RAD,
-    longitudeOfAscendingNodeRad:
-      evaluate(series.longitudeOfAscendingNodeDeg) * DEG_TO_RAD,
-  }
-}
-
-function solveKepler(meanAnomalyRad: number, eccentricity: number): number {
-  let eccentricAnomaly = meanAnomalyRad
-
-  for (let iteration = 0; iteration < 8; iteration += 1) {
-    const delta =
-      (eccentricAnomaly -
-        eccentricity * Math.sin(eccentricAnomaly) -
-        meanAnomalyRad) /
-      (1 - eccentricity * Math.cos(eccentricAnomaly))
-
-    eccentricAnomaly -= delta
-
-    if (Math.abs(delta) < 1e-8) {
-      break
-    }
-  }
-
-  return eccentricAnomaly
-}
-
+/**
+ * Returns the heliocentric position of `body` at `date` in AU, using the
+ * default ephemeris provider (VSOP87D truncated).
+ */
 export function getHeliocentricPositionAu(
   body: SolarBodyDefinition,
   date: Date,
 ): Vector3 {
-  const centuriesSinceJ2000 = (getJulianDate(date) - J2000_JULIAN_DATE) / 36_525
-  const elements = evaluateSeries(body.elements, centuriesSinceJ2000)
-  const meanAnomaly = normalizeRadians(
-    elements.meanLongitudeRad - elements.longitudeOfPerihelionRad,
-  )
-  const eccentricAnomaly = solveKepler(meanAnomaly, elements.eccentricity)
-  const trueAnomaly =
-    2 *
-    Math.atan2(
-      Math.sqrt(1 + elements.eccentricity) * Math.sin(eccentricAnomaly / 2),
-      Math.sqrt(1 - elements.eccentricity) * Math.cos(eccentricAnomaly / 2),
-    )
-
-  const argumentOfPerihelion =
-    elements.longitudeOfPerihelionRad - elements.longitudeOfAscendingNodeRad
-  const orbitalRadius =
-    elements.semiMajorAxisAu *
-    (1 - elements.eccentricity * Math.cos(eccentricAnomaly))
-  const angle = argumentOfPerihelion + trueAnomaly
-
-  const cosAscending = Math.cos(elements.longitudeOfAscendingNodeRad)
-  const sinAscending = Math.sin(elements.longitudeOfAscendingNodeRad)
-  const cosInclination = Math.cos(elements.inclinationRad)
-  const sinInclination = Math.sin(elements.inclinationRad)
-  const cosAngle = Math.cos(angle)
-  const sinAngle = Math.sin(angle)
-
-  const xStandard =
-    orbitalRadius *
-    (cosAscending * cosAngle - sinAscending * sinAngle * cosInclination)
-  const yStandard =
-    orbitalRadius *
-    (sinAscending * cosAngle + cosAscending * sinAngle * cosInclination)
-  const zStandard = orbitalRadius * (sinAngle * sinInclination)
-
-  return new Vector3(xStandard, zStandard, yStandard)
+  return defaultEphemerisProvider.getHeliocentricPositionAu(body, date)
 }
 
+/**
+ * Samples the full orbit of `body` at the epoch implied by `date`.
+ * Returns an array of `samples` heliocentric positions in AU.
+ */
 export function buildOrbitPoints(
   body: SolarBodyDefinition,
   date: Date,
   samples = 320,
 ): Vector3[] {
-  const centuriesSinceJ2000 = (getJulianDate(date) - J2000_JULIAN_DATE) / 36_525
-  const elements = evaluateSeries(body.elements, centuriesSinceJ2000)
-  const argumentOfPerihelion =
-    elements.longitudeOfPerihelionRad - elements.longitudeOfAscendingNodeRad
-  const cosAscending = Math.cos(elements.longitudeOfAscendingNodeRad)
-  const sinAscending = Math.sin(elements.longitudeOfAscendingNodeRad)
-  const cosInclination = Math.cos(elements.inclinationRad)
-  const sinInclination = Math.sin(elements.inclinationRad)
-  const points: Vector3[] = []
-
-  for (let index = 0; index < samples; index += 1) {
-    const eccentricAnomaly = (index / samples) * TAU
-    const trueAnomaly =
-      2 *
-      Math.atan2(
-        Math.sqrt(1 + elements.eccentricity) * Math.sin(eccentricAnomaly / 2),
-        Math.sqrt(1 - elements.eccentricity) * Math.cos(eccentricAnomaly / 2),
-      )
-    const orbitalRadius =
-      elements.semiMajorAxisAu *
-      (1 - elements.eccentricity * Math.cos(eccentricAnomaly))
-    const angle = argumentOfPerihelion + trueAnomaly
-    const cosAngle = Math.cos(angle)
-    const sinAngle = Math.sin(angle)
-
-    const xStandard =
-      orbitalRadius *
-      (cosAscending * cosAngle - sinAscending * sinAngle * cosInclination)
-    const yStandard =
-      orbitalRadius *
-      (sinAscending * cosAngle + cosAscending * sinAngle * cosInclination)
-    const zStandard = orbitalRadius * (sinAngle * sinInclination)
-
-    points.push(new Vector3(xStandard, zStandard, yStandard))
-  }
-
-  return points
+  return defaultEphemerisProvider.buildOrbitPoints(body, date, samples)
 }

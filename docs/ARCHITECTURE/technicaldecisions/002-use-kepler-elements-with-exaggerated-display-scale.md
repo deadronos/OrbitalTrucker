@@ -1,7 +1,8 @@
 # ADR 002: Use Keplerian orbital elements with exaggerated body display sizes
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR 006 (orbital calculation source), Accepted (display-scale rule)
 - **Date:** 2026-03-29
+- **Updated:** 2026-03-29
 
 ## Context
 
@@ -11,9 +12,11 @@ A strictly literal rendering of both distance and body size would make most plan
 
 ## Decision
 
-The current implementation uses two complementary rules:
+The implementation uses two complementary rules:
 
-1. **Orbital distances and positions** are derived from low-precision J2000 Keplerian element series.
+1. **Orbital distances and positions** are computed by an `EphemerisProvider` (see ADR 006).
+   The initial provider was a low-precision J2000 Keplerian element series.
+   The active provider is now VSOP87D truncated (see ADR 006).
 2. **Rendered body sizes** are intentionally exaggerated using hand-chosen `displayRadiusAu` values.
 
 The renderer also enables `logarithmicDepthBuffer` to better support the wide depth range involved in AU-scale scenes.
@@ -30,9 +33,12 @@ The renderer also enables `logarithmicDepthBuffer` to better support the wide de
 ### Negative
 
 - visual scale is not physically literal for object diameters
-- the orbital model is an approximation, not a research-grade ephemeris
+- the orbital model is a truncated series, not a full research-grade ephemeris
+- the Keplerian approximation fallback (used for Pluto) is explicitly less accurate
 - orbit lines are periodically rebuilt rather than backed by a more advanced simulation cache
 
 ## Follow-up
 
-Future upgrades may separate simulation units from render units more formally, add higher-fidelity ephemerides, and introduce level-of-detail or local-space transitions for close approaches.
+ADR 006 documents the ephemeris provider abstraction that was introduced to make
+the simulation source swappable. Future work may introduce level-of-detail or
+local-space transitions for close approaches.
