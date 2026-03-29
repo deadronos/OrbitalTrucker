@@ -44,7 +44,6 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
     useState(DEFAULT_LOCATION_ID)
   const [timeWarpIndex, setTimeWarpIndex] = useState(3)
   const [timePaused, setTimePaused] = useState(false)
-  const [autoOrientTrigger, setAutoOrientTrigger] = useState(0)
 
   const destinations = useMemo(() => getLocationCatalog(), [])
   const selectedLocation = useMemo(
@@ -73,8 +72,6 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
         setTimeWarpIndex((current) =>
           Math.min(TIME_WARP_STEPS.length - 1, current + 1),
         )
-      } else if (event.code === 'KeyT') {
-        setAutoOrientTrigger((n) => n + 1)
       }
     }
 
@@ -89,7 +86,6 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
     <div className="relative h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(46,_86,_142,_0.28),_transparent_35%),linear-gradient(180deg,_rgba(2,_4,_9,_0.78),_rgba(2,_4,_9,_0.98))] text-slate-50">
       <Suspense fallback={<div className="absolute inset-0 bg-[#020409]" />}>
         <SceneComponent
-          autoOrientTrigger={autoOrientTrigger}
           selectedLocationId={selectedLocation.id}
           timePaused={timePaused}
           timeWarpIndex={timeWarpIndex}
@@ -105,7 +101,7 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
                 OrbitalTrucker
               </p>
               <h1 className="mt-1 text-lg font-semibold tracking-tight text-slate-50">
-                Minimal bridge HUD
+                Autonomous bridge HUD
               </h1>
             </div>
             <span className="rounded-full border border-cyan-400/15 bg-cyan-400/10 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-cyan-100/90">
@@ -113,8 +109,8 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
             </span>
           </div>
           <p className="mt-2 text-sm leading-6 text-slate-300">
-            The simulator stays full-screen; the HUD keeps navigation,
-            telemetry, and orbit reference within quick-glance range.
+            Route selection, live planner telemetry, and time management stay
+            in reach while the freighter updates course on its own.
           </p>
         </Card>
 
@@ -141,7 +137,6 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
 
         <ControlPanel
           destinations={destinations}
-          onOrientToTarget={() => setAutoOrientTrigger((n) => n + 1)}
           onSelectLocation={setSelectedLocationId}
           selectedLocationId={selectedLocation.id}
         />

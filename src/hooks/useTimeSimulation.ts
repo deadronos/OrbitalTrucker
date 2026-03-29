@@ -49,7 +49,7 @@ export function useTimeSimulation(
         setOrbitEpoch(new Date(date))
       }
     }
-  })
+  }, -3)
 
   return { simulatedDateRef, orbitEpoch }
 }

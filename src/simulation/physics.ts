@@ -22,6 +22,17 @@ export type ShipOrientation = {
   up: Vector3
 }
 
+export type ShipControlInput = {
+  forward: number
+  right: number
+  up: number
+  yaw: number
+  pitch: number
+  boost: boolean
+  brakeTranslation: boolean
+  brakeRotation: boolean
+}
+
 export const INITIAL_SHIP_POSITION = [1.04, 0.012, 0.02] as const
 export const SHIP_SCALE_AU = 0.0048
 
@@ -30,19 +41,32 @@ export const PITCH_LIMIT_RAD = 1.35
 
 // Physics constants
 /** Normal linear thrust in AU s⁻² (F/m). */
-const THRUST_NORMAL = 0.000016
+export const THRUST_NORMAL_AU_PER_S2 = 0.000016
 /** Boosted linear thrust in AU s⁻² when Shift is held. */
-const THRUST_BOOST = 0.00006
+export const THRUST_BOOST_AU_PER_S2 = 0.00006
 /** Normal rotational acceleration in rad s⁻². */
-const ANGULAR_THRUST_RAD_PER_S2 = 0.3
+export const ANGULAR_THRUST_RAD_PER_S2 = 0.3
 /** Boosted rotational acceleration in rad s⁻² when Shift is held. */
-const ANGULAR_THRUST_BOOST_RAD_PER_S2 = 0.6
+export const ANGULAR_THRUST_BOOST_RAD_PER_S2 = 0.6
 /** Decay coefficient applied per-second when kill-velocity (Space) is held. */
-const TRANSLATION_BRAKE_FACTOR = 2.8
+export const TRANSLATION_BRAKE_FACTOR = 2.8
 /** Decay coefficient applied per-second when kill-rotation (R) is held. */
-const ROTATION_BRAKE_FACTOR = 5.0
+export const ROTATION_BRAKE_FACTOR = 5.0
 /** Decay coefficient applied per-second by the rotation-assist computer. */
-const ROTATION_ASSIST_FACTOR = 3.0
+export const ROTATION_ASSIST_FACTOR = 3.0
+
+export function createIdleShipControls(): ShipControlInput {
+  return {
+    forward: 0,
+    right: 0,
+    up: 0,
+    yaw: 0,
+    pitch: 0,
+    boost: false,
+    brakeTranslation: false,
+    brakeRotation: false,
+  }
+}
 
 export function createInitialShipState(): ShipState {
   return {
@@ -53,6 +77,35 @@ export function createInitialShipState(): ShipState {
     angularVelocity: { yaw: 0, pitch: 0 },
     rotationAssist: true,
     chaseDistance: 0.19,
+  }
+}
+
+export function getShipOrientationFromAngles(
+  yaw: number,
+  pitch: number,
+): ShipOrientation {
+  const lookEuler = new Euler(pitch, yaw, 0, 'YXZ')
+  const quaternion = new Quaternion().setFromEuler(lookEuler)
+  const forward = new Vector3(1, 0, 0).applyQuaternion(quaternion)
+  const right = new Vector3(0, 0, -1).applyQuaternion(quaternion)
+  const up = new Vector3(0, 1, 0).applyQuaternion(quaternion)
+
+  return { quaternion, forward, right, up }
+}
+
+export function shipControlsFromKeys(
+  keysDown: ReadonlySet<string>,
+): ShipControlInput {
+  return {
+    forward: Number(keysDown.has('KeyW')) - Number(keysDown.has('KeyS')),
+    right: Number(keysDown.has('KeyD')) - Number(keysDown.has('KeyA')),
+    up: Number(keysDown.has('KeyE')) - Number(keysDown.has('KeyQ')),
+    yaw:
+      Number(keysDown.has('ArrowLeft')) - Number(keysDown.has('ArrowRight')),
+    pitch: Number(keysDown.has('ArrowUp')) - Number(keysDown.has('ArrowDown')),
+    boost: keysDown.has('Shift'),
+    brakeTranslation: keysDown.has('Space'),
+    brakeRotation: keysDown.has('KeyR'),
   }
 }
 
@@ -69,9 +122,8 @@ export function createInitialShipState(): ShipState {
  *   yaw/pitch       += angularVelocity × Δt
  *
  * Assist modes:
- *   Space → kill velocity (retro-thrust, decays at TRANSLATION_BRAKE_FACTOR/s)
- *   R     → kill rotation (retro-spin,  decays at ROTATION_BRAKE_FACTOR/s)
- *   F     → toggle rotationAssist (handled by caller via keydown edge detection)
+ *   brakeTranslation → retro-thrust decays speed at TRANSLATION_BRAKE_FACTOR/s
+ *   brakeRotation    → retro-spin decays angular velocity at ROTATION_BRAKE_FACTOR/s
  *
  * Mutates state.position, state.velocity, state.yaw, state.pitch, and
  * state.angularVelocity in place.
@@ -79,26 +131,25 @@ export function createInitialShipState(): ShipState {
  */
 export function stepShipPhysics(
   state: ShipState,
-  keysDown: ReadonlySet<string>,
+  controlsOrKeys: ShipControlInput | ReadonlySet<string>,
   deltaSec: number,
 ): ShipOrientation {
-  const lookEuler = new Euler(state.pitch, state.yaw, 0, 'YXZ')
-  const quaternion = new Quaternion().setFromEuler(lookEuler)
-
-  const forward = new Vector3(1, 0, 0).applyQuaternion(quaternion)
-  const right = new Vector3(0, 0, -1).applyQuaternion(quaternion)
-  const up = new Vector3(0, 1, 0).applyQuaternion(quaternion)
+  const controls = normalizeShipControls(controlsOrKeys)
+  const { quaternion, forward, right, up } = getShipOrientationFromAngles(
+    state.yaw,
+    state.pitch,
+  )
 
   // ── Linear thrust ────────────────────────────────────────────────────────
-  const thrustPower = keysDown.has('Shift') ? THRUST_BOOST : THRUST_NORMAL
+  const thrustPower = controls.boost
+    ? THRUST_BOOST_AU_PER_S2
+    : THRUST_NORMAL_AU_PER_S2
   const acceleration = new Vector3()
 
-  if (keysDown.has('KeyW')) acceleration.add(forward)
-  if (keysDown.has('KeyS')) acceleration.addScaledVector(forward, -1)
-  if (keysDown.has('KeyD')) acceleration.add(right)
-  if (keysDown.has('KeyA')) acceleration.addScaledVector(right, -1)
-  if (keysDown.has('KeyE')) acceleration.add(up)
-  if (keysDown.has('KeyQ')) acceleration.addScaledVector(up, -1)
+  if (controls.forward !== 0)
+    acceleration.addScaledVector(forward, controls.forward)
+  if (controls.right !== 0) acceleration.addScaledVector(right, controls.right)
+  if (controls.up !== 0) acceleration.addScaledVector(up, controls.up)
 
   if (acceleration.lengthSq() > 0) {
     acceleration.normalize().multiplyScalar(thrustPower)
@@ -107,33 +158,23 @@ export function stepShipPhysics(
 
   // Kill velocity: hold Space to fire retro-thrusters and brake translation.
   // There is no passive drag — velocity persists without active thrust.
-  if (keysDown.has('Space')) {
+  if (controls.brakeTranslation) {
     state.velocity.multiplyScalar(
       Math.max(0, 1 - deltaSec * TRANSLATION_BRAKE_FACTOR),
     )
   }
 
   // ── Rotational thrust (arrow keys) ───────────────────────────────────────
-  const angularThrust = keysDown.has('Shift')
+  const angularThrust = controls.boost
     ? ANGULAR_THRUST_BOOST_RAD_PER_S2
     : ANGULAR_THRUST_RAD_PER_S2
-  const hasRotationInput =
-    keysDown.has('ArrowLeft') ||
-    keysDown.has('ArrowRight') ||
-    keysDown.has('ArrowUp') ||
-    keysDown.has('ArrowDown')
+  const hasRotationInput = controls.yaw !== 0 || controls.pitch !== 0
 
-  if (keysDown.has('ArrowLeft'))
-    state.angularVelocity.yaw += angularThrust * deltaSec
-  if (keysDown.has('ArrowRight'))
-    state.angularVelocity.yaw -= angularThrust * deltaSec
-  if (keysDown.has('ArrowUp'))
-    state.angularVelocity.pitch += angularThrust * deltaSec
-  if (keysDown.has('ArrowDown'))
-    state.angularVelocity.pitch -= angularThrust * deltaSec
+  state.angularVelocity.yaw += controls.yaw * angularThrust * deltaSec
+  state.angularVelocity.pitch += controls.pitch * angularThrust * deltaSec
 
   // Kill rotation: hold R to fire rotational retro-thrusters.
-  if (keysDown.has('KeyR')) {
+  if (controls.brakeRotation) {
     const brakeFactor = Math.max(0, 1 - deltaSec * ROTATION_BRAKE_FACTOR)
     state.angularVelocity.yaw *= brakeFactor
     state.angularVelocity.pitch *= brakeFactor
@@ -158,4 +199,33 @@ export function stepShipPhysics(
   state.position.addScaledVector(state.velocity, deltaSec)
 
   return { quaternion, forward, right, up }
+}
+
+function normalizeShipControls(
+  controlsOrKeys: ShipControlInput | ReadonlySet<string>,
+): ShipControlInput {
+  if (!isShipControlInput(controlsOrKeys)) {
+    return normalizeShipControls(shipControlsFromKeys(controlsOrKeys))
+  }
+
+  return {
+    forward: clampAxis(controlsOrKeys.forward),
+    right: clampAxis(controlsOrKeys.right),
+    up: clampAxis(controlsOrKeys.up),
+    yaw: clampAxis(controlsOrKeys.yaw),
+    pitch: clampAxis(controlsOrKeys.pitch),
+    boost: controlsOrKeys.boost,
+    brakeTranslation: controlsOrKeys.brakeTranslation,
+    brakeRotation: controlsOrKeys.brakeRotation,
+  }
+}
+
+function clampAxis(value: number): number {
+  return Math.max(-1, Math.min(1, value))
+}
+
+function isShipControlInput(
+  value: ShipControlInput | ReadonlySet<string>,
+): value is ShipControlInput {
+  return 'forward' in value
 }

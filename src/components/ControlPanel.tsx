@@ -3,21 +3,18 @@ import {
   getLocationParent,
   type LocationDefinition,
 } from '../world/locations'
-import { Button } from './ui/button'
 import { Card } from './ui/card'
 
 type ControlPanelProps = {
   destinations: readonly LocationDefinition[]
   selectedLocationId: string
   onSelectLocation: (locationId: string) => void
-  onOrientToTarget: () => void
 }
 
 export function ControlPanel({
   destinations,
   selectedLocationId,
   onSelectLocation,
-  onOrientToTarget,
 }: ControlPanelProps) {
   const selectedLocation =
     destinations.find((location) => location.id === selectedLocationId) ??
@@ -31,25 +28,25 @@ export function ControlPanel({
     <Card className="pointer-events-auto border-white/10 bg-slate-950/55 p-4 shadow-[0_24px_60px_rgba(0,0,0,0.3)] backdrop-blur-xl">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold tracking-tight text-slate-50">
-          Controls
+          Route control
         </h2>
         <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-slate-400">
-          compact
+          autonomous
         </span>
       </div>
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        <ControlHint keys={['W', 'A', 'S', 'D']} label="Thrust / strafe" />
-        <ControlHint keys={['Q', 'E']} label="Vertical thrusters" />
-        <ControlHint keys={['Shift']} label="Boost" />
-        <ControlHint keys={['Space']} label="Kill velocity" />
-        <ControlHint keys={['←', '→', '↑', '↓']} label="Rotation thrusters" />
-        <ControlHint keys={['R']} label="Kill rotation" />
-        <ControlHint keys={['F']} label="Toggle rotation assist" />
-        <ControlHint keys={['Drag']} label="Rotate heading" />
-        <ControlHint keys={['Wheel']} label="Chase zoom" />
-        <ControlHint keys={['[', ']']} label="Time warp" />
-        <ControlHint keys={['T']} label="Target orient" />
+      <div className="mt-3 rounded-2xl border border-cyan-300/15 bg-cyan-400/10 px-3 py-3">
+        <p className="text-xs font-medium uppercase tracking-[0.22em] text-cyan-100/85">
+          Flight computer engaged
+        </p>
+        <p className="mt-2 text-sm leading-6 text-slate-200">
+          Choose a destination and the freighter will keep reacquiring its
+          planner course as the system moves.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <StatusPill label="[ / ] Time warp" />
+          <StatusPill label="Destination changes reroute live" />
+        </div>
       </div>
 
       <div className="mt-4">
@@ -91,36 +88,19 @@ export function ControlPanel({
           </div>
         ) : null}
       </div>
-
-      <div className="mt-4">
-        <Button onClick={onOrientToTarget} size="sm" variant="secondary">
-          Orient to target
-        </Button>
-      </div>
     </Card>
   )
 }
 
-type ControlHintProps = {
-  keys: string[]
+type StatusPillProps = {
   label: string
 }
 
-function ControlHint({ keys, label }: ControlHintProps) {
+function StatusPill({ label }: StatusPillProps) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2">
-      <div className="flex flex-wrap items-center gap-1.5">
-        {keys.map((key) => (
-          <kbd
-            className="inline-flex h-6 min-w-6 items-center justify-center rounded-md border border-white/10 bg-white/10 px-1.5 text-[10px] font-medium text-slate-50 shadow-sm"
-            key={key}
-          >
-            {key}
-          </kbd>
-        ))}
-      </div>
-      <p className="mt-1.5 text-xs leading-5 text-slate-300">{label}</p>
-    </div>
+    <span className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[11px] font-medium text-slate-100">
+      {label}
+    </span>
   )
 }
 
