@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ComponentType } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState, type ComponentType, type LazyExoticComponent } from 'react'
 
 import { ControlPanel } from './components/ControlPanel'
 import { LegendPanel } from './components/LegendPanel'
@@ -8,15 +8,21 @@ import {
   TIME_WARP_STEPS,
   type SimulationMetrics,
 } from './simulation/types'
-import {
-  SimulatorCanvas,
-  type SimulatorCanvasProps,
-} from './components/SimulatorCanvas'
+import type { SimulatorCanvasProps } from './components/SimulatorCanvas'
 import { SUN, SOLAR_BODIES } from './solar-data'
 import { Card } from './components/ui/card'
 
+/**
+ * Heavy 3D engine chunk (Three.js, R3F, Drei, all scene components) is loaded
+ * lazily so it does not block the initial HUD render. The Suspense fallback
+ * shows a matching dark background while the canvas module downloads.
+ */
+const SimulatorCanvas = lazy(() => import('./components/SimulatorCanvas'))
+
 type AppShellProps = {
-  SceneComponent?: ComponentType<SimulatorCanvasProps>
+  SceneComponent?:
+    | ComponentType<SimulatorCanvasProps>
+    | LazyExoticComponent<ComponentType<SimulatorCanvasProps>>
 }
 
 export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
@@ -64,13 +70,15 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
 
   return (
     <div className="relative h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(46,_86,_142,_0.28),_transparent_35%),linear-gradient(180deg,_rgba(2,_4,_9,_0.78),_rgba(2,_4,_9,_0.98))] text-slate-50">
-      <SceneComponent
-        autoOrientTrigger={autoOrientTrigger}
-        selectedBodyName={selectedBodyName}
-        timePaused={timePaused}
-        timeWarpIndex={timeWarpIndex}
-        onMetricsChange={setMetrics}
-      />
+      <Suspense fallback={<div className="absolute inset-0 bg-[#020409]" />}>
+        <SceneComponent
+          autoOrientTrigger={autoOrientTrigger}
+          selectedBodyName={selectedBodyName}
+          timePaused={timePaused}
+          timeWarpIndex={timeWarpIndex}
+          onMetricsChange={setMetrics}
+        />
+      </Suspense>
 
       <aside className="pointer-events-none absolute inset-y-4 left-4 z-10 flex w-[min(20rem,calc(100vw-2rem))] flex-col gap-3 overflow-y-auto pr-1 sm:w-[19rem] lg:w-[20rem]">
         <Card className="pointer-events-auto border-white/10 bg-slate-950/55 p-4 shadow-[0_24px_60px_rgba(0,0,0,0.3)] backdrop-blur-xl">
