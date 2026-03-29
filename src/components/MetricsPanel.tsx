@@ -1,5 +1,6 @@
 import {
   formatDistanceAu,
+  formatEtaDays,
   formatShipSpeedKmPerSecond,
   formatTimeWarp,
   formatUtcDate,
@@ -51,6 +52,14 @@ export function MetricsPanel({
         <div>
           <span className="label">Range to target</span>
           <strong>{formatDistanceAu(metrics.targetDistanceAu)}</strong>
+        </div>
+        <div>
+          <span className="label">Bearing to target</span>
+          <strong>{metrics.targetBearingDeg.toFixed(1)}°</strong>
+        </div>
+        <div>
+          <span className="label">ETA (straight-line)</span>
+          <strong>{formatEtaDays(metrics.etaDays)}</strong>
         </div>
       </div>
 

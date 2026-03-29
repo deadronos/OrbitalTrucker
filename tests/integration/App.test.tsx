@@ -16,6 +16,8 @@ function StubScene({
       shipSpeedKmPerSecond: 42.4,
       heliocentricDistanceAu: 1.04,
       targetDistanceAu: selectedBodyName === 'Pluto' ? 34.95 : 2.03,
+      targetBearingDeg: 45,
+      etaDays: selectedBodyName === 'Pluto' ? 365 : null,
     })
   }, [onMetricsChange, selectedBodyName])
 

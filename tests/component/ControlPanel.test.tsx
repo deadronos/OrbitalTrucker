@@ -9,6 +9,7 @@ describe('ControlPanel', () => {
 
     render(
       <ControlPanel
+        onOrientToTarget={vi.fn()}
         onSelectBody={onSelectBody}
         selectedBodyName="Earth"
         targetNames={['Sun', 'Earth', 'Mars']}
@@ -19,5 +20,22 @@ describe('ControlPanel', () => {
 
     expect(onSelectBody).toHaveBeenCalledWith('Mars')
     expect(screen.getByTestId('target-earth')).toHaveClass('active')
+  })
+
+  it('calls onOrientToTarget when the orient button is clicked', () => {
+    const onOrientToTarget = vi.fn()
+
+    render(
+      <ControlPanel
+        onOrientToTarget={onOrientToTarget}
+        onSelectBody={vi.fn()}
+        selectedBodyName="Earth"
+        targetNames={['Sun', 'Earth', 'Mars']}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Orient to target' }))
+
+    expect(onOrientToTarget).toHaveBeenCalledOnce()
   })
 })

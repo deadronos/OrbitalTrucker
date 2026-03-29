@@ -27,3 +27,23 @@ export function formatTimeWarp(daysPerSecond: number): string {
 export function formatUtcDate(date: Date): string {
   return date.toUTCString().replace('GMT', 'UTC')
 }
+
+/**
+ * Formats an ETA expressed in days into a human-readable string.
+ * Returns an em-dash when the ship is stationary (etaDays is null).
+ */
+export function formatEtaDays(etaDays: number | null): string {
+  if (etaDays === null) {
+    return '—'
+  }
+
+  if (etaDays < 1) {
+    return `${(etaDays * 24).toFixed(1)} h`
+  }
+
+  if (etaDays < 365.25) {
+    return `${etaDays.toFixed(1)} d`
+  }
+
+  return `${(etaDays / 365.25).toFixed(1)} yr`
+}
