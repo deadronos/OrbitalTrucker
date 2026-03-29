@@ -1,6 +1,6 @@
 # ADR 007: Trajectory planning hook and route-line scene component
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR 011](./011-location-catalog-moons-and-transfer-planning.md)
 - **Date:** 2026-03-29
 
 ## Context
