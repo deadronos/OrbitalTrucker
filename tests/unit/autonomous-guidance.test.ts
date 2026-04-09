@@ -56,6 +56,23 @@ describe('computeAutonomousGuidance', () => {
     expect(guidance.controls.up).toBeGreaterThan(0.49)
   })
 
+  it('tapers cruise thrust as stopping distance approaches remaining range', () => {
+    const state = createInitialShipState()
+    state.yaw = 0
+    state.pitch = 0
+    state.velocity.set(Math.sqrt(2 * 0.000016 * 0.6), 0, 0)
+
+    const guidance = computeAutonomousGuidance(
+      state,
+      createPlan(new Vector3(1, 0, 0), 0, 1),
+    )
+
+    expect(guidance.phase).toBe('cruising')
+    expect(guidance.controls.forward).toBeGreaterThan(0)
+    expect(guidance.controls.forward).toBeLessThan(0.7)
+    expect(guidance.controls.brakeTranslation).toBe(false)
+  })
+
   it('switches to braking when the ship is moving too fast for the remaining range', () => {
     const state = createInitialShipState()
     state.yaw = 0
@@ -116,6 +133,7 @@ describe('autonomous guidance with ship physics', () => {
 
     const target = new Vector3(0.2, 0, 0)
     const initialDistance = state.position.distanceTo(target)
+    let previousPhase: ReturnType<typeof computeAutonomousGuidance>['phase'] | undefined
 
     for (let step = 0; step < 180; step += 1) {
       const { forward } = getShipOrientationFromAngles(state.yaw, state.pitch)
@@ -127,7 +145,8 @@ describe('autonomous guidance with ship physics', () => {
         destinationId: 'target',
         resolveDestinationPosition: () => target.clone(),
       })
-      const guidance = computeAutonomousGuidance(state, plan)
+      const guidance = computeAutonomousGuidance(state, plan, previousPhase)
+      previousPhase = guidance.phase
 
       stepShipPhysics(state, guidance.controls, 0.016)
     }
@@ -144,6 +163,7 @@ describe('autonomous guidance with ship physics', () => {
 
     const target = new Vector3(0.2, 0.05, 0)
     const initialDistance = state.position.distanceTo(target)
+    let previousPhase: ReturnType<typeof computeAutonomousGuidance>['phase'] | undefined
 
     for (let step = 0; step < 720; step += 1) {
       const { forward } = getShipOrientationFromAngles(state.yaw, state.pitch)
@@ -155,13 +175,65 @@ describe('autonomous guidance with ship physics', () => {
         destinationId: 'target',
         resolveDestinationPosition: () => target.clone(),
       })
-      const guidance = computeAutonomousGuidance(state, plan)
+      const guidance = computeAutonomousGuidance(state, plan, previousPhase)
+      previousPhase = guidance.phase
 
       stepShipPhysics(state, guidance.controls, 0.016)
     }
 
     expect(state.position.distanceTo(target)).toBeLessThan(initialDistance)
     expect(state.velocity.length()).toBeGreaterThan(0)
+  })
+
+  it('approaches a straight-in destination without excessive brake chatter', () => {
+    const state = createInitialShipState()
+    state.position.set(0, 0, 0)
+    state.velocity.set(0, 0, 0)
+    state.yaw = 0
+    state.pitch = 0
+
+    const target = new Vector3(0.2, 0, 0)
+    let previousPhase: ReturnType<typeof computeAutonomousGuidance>['phase'] | undefined
+    let cruiseBrakeTransitions = 0
+    let arrived = false
+
+    for (let step = 0; step < 20_000; step += 1) {
+      const { forward } = getShipOrientationFromAngles(state.yaw, state.pitch)
+      const plan = planTransfer({
+        date: new Date('2026-03-29T00:00:00.000Z'),
+        shipPosition: state.position,
+        shipVelocity: state.velocity,
+        shipForward: forward,
+        destinationId: 'target',
+        resolveDestinationPosition: () => target.clone(),
+      })
+      const guidance = computeAutonomousGuidance(
+        state,
+        plan,
+        previousPhase,
+      )
+
+      if (
+        previousPhase &&
+        previousPhase !== guidance.phase &&
+        ((previousPhase === 'cruising' && guidance.phase === 'braking') ||
+          (previousPhase === 'braking' && guidance.phase === 'cruising'))
+      ) {
+        cruiseBrakeTransitions += 1
+      }
+
+      previousPhase = guidance.phase
+
+      if (guidance.phase === 'arrived') {
+        arrived = true
+        break
+      }
+
+      stepShipPhysics(state, guidance.controls, 0.016)
+    }
+
+    expect(arrived).toBe(true)
+    expect(cruiseBrakeTransitions).toBeLessThan(200)
   })
 })
 

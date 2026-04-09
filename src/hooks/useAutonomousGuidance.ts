@@ -73,6 +73,7 @@ export function useAutonomousGuidance({
     const guidanceResult = computeAutonomousGuidance(
       shipStateRef.current,
       plannerResult,
+      guidanceResultRef.current.phase,
     )
 
     plannerResultRef.current = plannerResult
