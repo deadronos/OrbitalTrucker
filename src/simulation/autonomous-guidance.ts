@@ -1,4 +1,4 @@
-import { Vector3 } from 'three'
+import { MathUtils, Vector3 } from 'three'
 
 import {
   createIdleShipControls,
@@ -34,12 +34,17 @@ const ALIGNMENT_BRAKE_WINDOW_DEG = 30
 const ARRIVAL_DISTANCE_AU = 0.001
 const ARRIVAL_SPEED_AU_PER_SEC = 4e-6
 const TURN_BRAKE_SPEED_AU_PER_SEC = 2e-6
+const APPROACH_TAPER_START_RATIO = 0.45
+const BRAKE_ENTRY_RATIO = 0.8
+const BRAKE_EXIT_RATIO = 0.45
 const STEERING_DEADZONE_RAD = 0.015
 const STEERING_FULL_SCALE_RAD = 0.35
+const STEERING_DAMPING_SECONDS = 1.2
 
 export function computeAutonomousGuidance(
   shipState: ShipState,
   plannerResult: TransferPlannerResult,
+  previousPhase?: AutonomousGuidancePhase,
 ): AutonomousGuidanceResult {
   const desiredDirection =
     plannerResult.guidance.direction.lengthSq() > 0
@@ -53,7 +58,13 @@ export function computeAutonomousGuidance(
     directionToYawPitch(desiredDirection)
   const yawErrorRad = normalizeAngle(desiredYaw - shipState.yaw)
   const pitchErrorRad = desiredPitch - shipState.pitch
-  const alignmentErrorDeg = plannerResult.guidance.bearingAngleDeg
+  const alignmentErrorDeg = MathUtils.radToDeg(
+    getGuidanceAlignmentErrorRad(
+      shipState.yaw,
+      shipState.pitch,
+      desiredDirection,
+    ),
+  )
   const speedAuPerSec = shipState.velocity.length()
   const closingSpeedAuPerSec = shipState.velocity.dot(desiredDirection)
   const brakingDistanceAu =
@@ -70,12 +81,17 @@ export function computeAutonomousGuidance(
     arrivalDistanceAu,
     brakingDistanceAu,
     plannedDistanceAu: plannerResult.travel.plannedDistanceAu,
+    previousPhase,
     speedAuPerSec,
   })
   const controls = createIdleShipControls()
 
-  controls.yaw = scaleSteeringError(yawErrorRad)
-  controls.pitch = scaleSteeringError(pitchErrorRad)
+  controls.yaw = scaleSteeringError(
+    yawErrorRad - shipState.angularVelocity.yaw * STEERING_DAMPING_SECONDS,
+  )
+  controls.pitch = scaleSteeringError(
+    pitchErrorRad - shipState.angularVelocity.pitch * STEERING_DAMPING_SECONDS,
+  )
 
   if (phase === 'arrived') {
     controls.brakeTranslation = true
@@ -90,11 +106,19 @@ export function computeAutonomousGuidance(
       speedAuPerSec > TURN_BRAKE_SPEED_AU_PER_SEC &&
       alignmentErrorDeg >= ALIGNMENT_BRAKE_WINDOW_DEG
   } else {
-    controls.forward = clampPositive(forward.dot(desiredDirection))
-    controls.right = dampedAxis(right.dot(desiredDirection))
-    controls.up = dampedAxis(up.dot(desiredDirection))
+    const approachThrottle = getApproachThrottle(
+      brakingDistanceAu,
+      plannerResult.travel.plannedDistanceAu,
+    )
+
+    controls.forward =
+      clampPositive(forward.dot(desiredDirection)) * approachThrottle
+    controls.right = dampedAxis(right.dot(desiredDirection)) * approachThrottle
+    controls.up = dampedAxis(up.dot(desiredDirection)) * approachThrottle
     controls.boost =
-      plannerResult.travel.plannedDistanceAu > 0.5 && alignmentErrorDeg < 4
+      plannerResult.travel.plannedDistanceAu > 0.5 &&
+      alignmentErrorDeg < 4 &&
+      approachThrottle > 0.95
   }
 
   return {
@@ -111,17 +135,43 @@ export function computeAutonomousGuidance(
   }
 }
 
+function getGuidanceAlignmentErrorRad(
+  yaw: number,
+  pitch: number,
+  desiredDirection: Vector3,
+): number {
+  const currentHeading = headingFromYawPitch(yaw, pitch)
+  const cosAngle = Math.max(
+    -1,
+    Math.min(1, currentHeading.dot(desiredDirection)),
+  )
+
+  return Math.acos(cosAngle)
+}
+
+function headingFromYawPitch(yaw: number, pitch: number): Vector3 {
+  const cosPitch = Math.cos(pitch)
+
+  return new Vector3(
+    Math.cos(yaw) * cosPitch,
+    Math.sin(pitch),
+    -Math.sin(yaw) * cosPitch,
+  ).normalize()
+}
+
 function selectGuidancePhase({
   alignmentErrorDeg,
   arrivalDistanceAu,
   brakingDistanceAu,
   plannedDistanceAu,
+  previousPhase,
   speedAuPerSec,
 }: {
   alignmentErrorDeg: number
   arrivalDistanceAu: number
   brakingDistanceAu: number
   plannedDistanceAu: number
+  previousPhase?: AutonomousGuidancePhase
   speedAuPerSec: number
 }): AutonomousGuidancePhase {
   if (
@@ -131,11 +181,15 @@ function selectGuidancePhase({
     return 'arrived'
   }
 
-  if (
-    brakingDistanceAu * 1.25 >= plannedDistanceAu ||
+  const shouldEnterBraking =
+    brakingDistanceAu >= plannedDistanceAu * BRAKE_ENTRY_RATIO ||
     (alignmentErrorDeg >= ALIGNMENT_BRAKE_WINDOW_DEG &&
       speedAuPerSec > TURN_BRAKE_SPEED_AU_PER_SEC)
-  ) {
+  const shouldHoldBraking =
+    previousPhase === 'braking' &&
+    brakingDistanceAu >= plannedDistanceAu * BRAKE_EXIT_RATIO
+
+  if (shouldEnterBraking || shouldHoldBraking) {
     return 'braking'
   }
 
@@ -144,6 +198,34 @@ function selectGuidancePhase({
   }
 
   return 'cruising'
+}
+
+function getApproachThrottle(
+  brakingDistanceAu: number,
+  plannedDistanceAu: number,
+): number {
+  if (plannedDistanceAu <= 0) {
+    return 0
+  }
+
+  const stopRatio = brakingDistanceAu / plannedDistanceAu
+
+  if (stopRatio <= APPROACH_TAPER_START_RATIO) {
+    return 1
+  }
+
+  if (stopRatio >= BRAKE_ENTRY_RATIO) {
+    return 0
+  }
+
+  return (
+    1 -
+    MathUtils.smoothstep(
+      stopRatio,
+      APPROACH_TAPER_START_RATIO,
+      BRAKE_ENTRY_RATIO,
+    )
+  )
 }
 
 function scaleSteeringError(errorRad: number): number {

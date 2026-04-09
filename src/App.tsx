@@ -1,6 +1,7 @@
 import {
   lazy,
   Suspense,
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -11,6 +12,7 @@ import {
 import { ControlPanel } from './components/ControlPanel'
 import { LegendPanel } from './components/LegendPanel'
 import { MetricsPanel } from './components/MetricsPanel'
+import { MissionsPanel } from './components/MissionsPanel'
 import {
   INITIAL_METRICS,
   TIME_WARP_STEPS,
@@ -24,6 +26,12 @@ import {
   getLocationById,
   getLocationCatalog,
 } from './world/locations'
+import {
+  getMissionById,
+  getMissionCatalog,
+  isMissionCompleted,
+  type MissionStatus,
+} from './world/missions'
 
 /**
  * Heavy 3D engine chunk (Three.js, R3F, Drei, all scene components) is loaded
@@ -44,6 +52,8 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
     useState(DEFAULT_LOCATION_ID)
   const [timeWarpIndex, setTimeWarpIndex] = useState(3)
   const [timePaused, setTimePaused] = useState(false)
+  const [activeMissionId, setActiveMissionId] = useState<string | null>(null)
+  const [missionStatus, setMissionStatus] = useState<MissionStatus>('available')
 
   const destinations = useMemo(() => getLocationCatalog(), [])
   const selectedLocation = useMemo(
@@ -61,6 +71,7 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
       })),
     [],
   )
+  const missionCatalog = useMemo(() => getMissionCatalog(), [])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -82,6 +93,30 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
     }
   }, [])
 
+  const handleMetricsChange = useCallback(
+    (newMetrics: SimulationMetrics) => {
+      setMetrics(newMetrics)
+      if (missionStatus === 'active' && activeMissionId) {
+        const activeMission = getMissionById(activeMissionId)
+        if (
+          isMissionCompleted(
+            activeMission,
+            newMetrics.autonomousPhase,
+            selectedLocationId,
+          )
+        ) {
+          setMissionStatus('completed')
+        }
+      }
+    },
+    [missionStatus, activeMissionId, selectedLocationId],
+  )
+
+  const handleAcceptMission = useCallback((missionId: string) => {
+    setActiveMissionId(missionId)
+    setMissionStatus('active')
+  }, [])
+
   return (
     <div className="relative h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(46,_86,_142,_0.28),_transparent_35%),linear-gradient(180deg,_rgba(2,_4,_9,_0.78),_rgba(2,_4,_9,_0.98))] text-slate-50">
       <Suspense fallback={<div className="absolute inset-0 bg-[#020409]" />}>
@@ -89,7 +124,7 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
           selectedLocationId={selectedLocation.id}
           timePaused={timePaused}
           timeWarpIndex={timeWarpIndex}
-          onMetricsChange={setMetrics}
+          onMetricsChange={handleMetricsChange}
         />
       </Suspense>
 
@@ -142,6 +177,13 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
           timeWarpDaysPerSecond={
             timePaused ? 0 : TIME_WARP_STEPS[timeWarpIndex]
           }
+        />
+
+        <MissionsPanel
+          activeMissionId={activeMissionId}
+          missionStatus={missionStatus}
+          missions={missionCatalog}
+          onAcceptMission={handleAcceptMission}
         />
 
         <LegendPanel bodies={legendBodies} />
