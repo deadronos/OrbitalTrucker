@@ -40,6 +40,22 @@ describe('computeAutonomousGuidance', () => {
     expect(guidance.controls.brakeTranslation).toBe(false)
   })
 
+  it('treats pitch-aligned elevated targets as cruise-ready', () => {
+    const state = createInitialShipState()
+    state.yaw = 0
+    state.pitch = Math.PI / 4
+
+    const guidance = computeAutonomousGuidance(
+      state,
+      createPlan(new Vector3(1, 1, 0), 45, 1.5),
+    )
+
+    expect(guidance.phase).toBe('cruising')
+    expect(guidance.alignmentErrorDeg).toBeLessThan(0.001)
+    expect(guidance.controls.forward).toBeGreaterThan(0.49)
+    expect(guidance.controls.up).toBeGreaterThan(0.49)
+  })
+
   it('switches to braking when the ship is moving too fast for the remaining range', () => {
     const state = createInitialShipState()
     state.yaw = 0
@@ -117,6 +133,35 @@ describe('autonomous guidance with ship physics', () => {
     }
 
     expect(state.position.distanceTo(target)).toBeLessThan(initialDistance)
+  })
+
+  it('reduces range to an elevated destination after turning onto the course', () => {
+    const state = createInitialShipState()
+    state.position.set(0, 0, 0)
+    state.velocity.set(0, 0, 0)
+    state.yaw = -Math.PI / 2
+    state.pitch = 0
+
+    const target = new Vector3(0.2, 0.05, 0)
+    const initialDistance = state.position.distanceTo(target)
+
+    for (let step = 0; step < 720; step += 1) {
+      const { forward } = getShipOrientationFromAngles(state.yaw, state.pitch)
+      const plan = planTransfer({
+        date: new Date('2026-03-29T00:00:00.000Z'),
+        shipPosition: state.position,
+        shipVelocity: state.velocity,
+        shipForward: forward,
+        destinationId: 'target',
+        resolveDestinationPosition: () => target.clone(),
+      })
+      const guidance = computeAutonomousGuidance(state, plan)
+
+      stepShipPhysics(state, guidance.controls, 0.016)
+    }
+
+    expect(state.position.distanceTo(target)).toBeLessThan(initialDistance)
+    expect(state.velocity.length()).toBeGreaterThan(0)
   })
 })
 

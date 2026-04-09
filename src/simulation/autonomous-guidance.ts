@@ -1,4 +1,4 @@
-import { Vector3 } from 'three'
+import { MathUtils, Vector3 } from 'three'
 
 import {
   createIdleShipControls,
@@ -36,6 +36,7 @@ const ARRIVAL_SPEED_AU_PER_SEC = 4e-6
 const TURN_BRAKE_SPEED_AU_PER_SEC = 2e-6
 const STEERING_DEADZONE_RAD = 0.015
 const STEERING_FULL_SCALE_RAD = 0.35
+const STEERING_DAMPING_SECONDS = 1.2
 
 export function computeAutonomousGuidance(
   shipState: ShipState,
@@ -53,7 +54,13 @@ export function computeAutonomousGuidance(
     directionToYawPitch(desiredDirection)
   const yawErrorRad = normalizeAngle(desiredYaw - shipState.yaw)
   const pitchErrorRad = desiredPitch - shipState.pitch
-  const alignmentErrorDeg = plannerResult.guidance.bearingAngleDeg
+  const alignmentErrorDeg = MathUtils.radToDeg(
+    getGuidanceAlignmentErrorRad(
+      shipState.yaw,
+      shipState.pitch,
+      desiredDirection,
+    ),
+  )
   const speedAuPerSec = shipState.velocity.length()
   const closingSpeedAuPerSec = shipState.velocity.dot(desiredDirection)
   const brakingDistanceAu =
@@ -74,8 +81,12 @@ export function computeAutonomousGuidance(
   })
   const controls = createIdleShipControls()
 
-  controls.yaw = scaleSteeringError(yawErrorRad)
-  controls.pitch = scaleSteeringError(pitchErrorRad)
+  controls.yaw = scaleSteeringError(
+    yawErrorRad - shipState.angularVelocity.yaw * STEERING_DAMPING_SECONDS,
+  )
+  controls.pitch = scaleSteeringError(
+    pitchErrorRad - shipState.angularVelocity.pitch * STEERING_DAMPING_SECONDS,
+  )
 
   if (phase === 'arrived') {
     controls.brakeTranslation = true
@@ -109,6 +120,30 @@ export function computeAutonomousGuidance(
     brakingDistanceAu,
     closingSpeedAuPerSec,
   }
+}
+
+function getGuidanceAlignmentErrorRad(
+  yaw: number,
+  pitch: number,
+  desiredDirection: Vector3,
+): number {
+  const currentHeading = headingFromYawPitch(yaw, pitch)
+  const cosAngle = Math.max(
+    -1,
+    Math.min(1, currentHeading.dot(desiredDirection)),
+  )
+
+  return Math.acos(cosAngle)
+}
+
+function headingFromYawPitch(yaw: number, pitch: number): Vector3 {
+  const cosPitch = Math.cos(pitch)
+
+  return new Vector3(
+    Math.cos(yaw) * cosPitch,
+    Math.sin(pitch),
+    -Math.sin(yaw) * cosPitch,
+  ).normalize()
 }
 
 function selectGuidancePhase({
