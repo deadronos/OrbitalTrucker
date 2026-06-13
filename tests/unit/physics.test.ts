@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   createInitialShipState,
+  getShipOrientationFromAngles,
   PITCH_LIMIT_RAD,
   stepShipPhysics,
 } from '../../src/simulation/physics'
@@ -194,6 +195,19 @@ describe('stepShipPhysics', () => {
 
     // yaw should have increased by ~0.5 radians
     expect(state.yaw).toBeCloseTo(initialYaw + 0.5, 5)
+  })
+
+  it('returns the post-integration orientation after rotation updates', () => {
+    const state = createInitialShipState()
+    state.rotationAssist = false
+
+    const result = stepShipPhysics(state, new Set(['ArrowLeft']), 1.0)
+    const expected = getShipOrientationFromAngles(state.yaw, state.pitch)
+
+    expect(result.quaternion.angleTo(expected.quaternion)).toBeLessThan(1e-6)
+    expect(result.forward.distanceTo(expected.forward)).toBeLessThan(1e-6)
+    expect(result.right.distanceTo(expected.right)).toBeLessThan(1e-6)
+    expect(result.up.distanceTo(expected.up)).toBeLessThan(1e-6)
   })
 
   it('pitch is clamped to PITCH_LIMIT_RAD when angular velocity would exceed it', () => {

@@ -135,7 +135,7 @@ export function stepShipPhysics(
   deltaSec: number,
 ): ShipOrientation {
   const controls = normalizeShipControls(controlsOrKeys)
-  const { quaternion, forward, right, up } = getShipOrientationFromAngles(
+  const { forward, right, up } = getShipOrientationFromAngles(
     state.yaw,
     state.pitch,
   )
@@ -198,7 +198,7 @@ export function stepShipPhysics(
 
   state.position.addScaledVector(state.velocity, deltaSec)
 
-  return { quaternion, forward, right, up }
+  return getShipOrientationFromAngles(state.yaw, state.pitch)
 }
 
 function normalizeShipControls(
