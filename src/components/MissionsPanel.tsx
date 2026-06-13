@@ -73,8 +73,13 @@ export function MissionsPanel({
           const isDone =
             isActive &&
             (missionStatus === 'completed' || missionStatus === 'failed')
-          const canAccept =
-            activeMissionId === null || (isActive && missionStatus !== 'active')
+          // The board is locked only while a contract is in flight. Once the
+          // active contract reaches a terminal state (completed/failed) the
+          // player must be able to pick a *different* contract off the board
+          // without reloading, so any row becomes acceptable again.
+          const isBoardLocked =
+            activeMissionId !== null && missionStatus === 'active'
+          const canAccept = !isBoardLocked && !isActive
 
           if (isActive && missionStatus === 'active') return null
 

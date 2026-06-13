@@ -64,6 +64,33 @@ available → active → completed
 
 Only one contract may be active at a time in v1 to keep state simple.
 
+#### Completion does not lock the board
+
+Reaching `completed` (or `failed`) for the active contract must not block the
+player from picking a different contract off the freight board. The board
+remains interactive in those terminal states, and a successful delivery simply
+returns the completed contract to the available set.
+
+Concretely, a contract row shows an **Accept contract** button when:
+
+- the active mission id is `null` (nothing in flight), **or**
+- the active mission is no longer in the `active` state (`completed` or
+  `failed`) — in which case the player may accept any contract, including a
+  different one. Accepting a new contract replaces the active id and resets
+  `missionStatus` to `active`, which dismisses the completion banner.
+
+This is what the user sees after a delivery:
+
+1. The completed contract's row is marked **Delivered ✓**.
+2. The completion banner at the top of the panel is still visible so the
+   player can read the reward summary.
+3. Every other contract row exposes an **Accept contract** button, and
+   clicking one advances the game onto the next haul without reloading.
+
+The active contract row itself does not show an Accept button while it is in
+the `active` state; that row is hidden from the board while the ship is
+working on it.
+
 ### 3. Arrival detection hooks into the autonomous guidance phase
 
 The autonomous guidance stack already exposes an `autonomousPhase` value that
@@ -82,11 +109,11 @@ adding a separate proximity sensor or a new physics pass.
 The first pass ships a small hard-coded catalog of at least three contracts
 spread across the freight network:
 
-| Contract | Origin | Destination |
-|---|---|---|
-| Mars Supply Run | Earth Orbit Freight Ring | Mars High Port |
-| Jovian Outpost Resupply | Ganymede Transfer Yard | Callisto Freight Depot |
-| Lunar Logistics Delivery | Cislunar Transfer Station | Luna Logistics Base |
+| Contract                 | Origin                    | Destination            |
+| ------------------------ | ------------------------- | ---------------------- |
+| Mars Supply Run          | Earth Orbit Freight Ring  | Mars High Port         |
+| Jovian Outpost Resupply  | Ganymede Transfer Yard    | Callisto Freight Depot |
+| Lunar Logistics Delivery | Cislunar Transfer Station | Luna Logistics Base    |
 
 This covers the Earth sphere, the Mars sphere, and the Jovian support network
 defined in ADR 005, keeping the first mission pass from being content-heavy
