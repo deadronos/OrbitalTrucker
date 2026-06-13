@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
+import { formatEtaDays, formatTimeWarp } from '../../src/simulation/formatters'
 import {
-  formatEtaDays,
-  formatTimeWarp,
-} from '../../src/simulation/formatters'
+  advanceOrbitEpochCadence,
+  createOrbitEpochCadenceState,
+} from '../../src/simulation/orbit-epoch-cadence'
 import {
   INITIAL_SIMULATED_DATE,
   TIME_WARP_STEPS,
@@ -96,17 +97,18 @@ describe('date advancement math', () => {
   it('accumulates simulated days correctly and does not reach the 7-day orbit-epoch threshold', () => {
     // Simulate 100 frames at 0.05 s/frame with warp = 1 d/s = 5 simulated days total.
     // 5 simulated days < 7-day threshold → no epoch update.
-    let accumulator = 0
+    let state = createOrbitEpochCadenceState()
     let epochUpdates = 0
     const warpDaysPerSecond = 1
     const frameDelta = 0.05
 
     for (let i = 0; i < 100; i++) {
-      accumulator += frameDelta * warpDaysPerSecond
-      if (accumulator >= 7) {
-        accumulator = 0
-        epochUpdates++
-      }
+      const result = advanceOrbitEpochCadence(
+        state,
+        frameDelta * warpDaysPerSecond,
+      )
+      state = result.nextState
+      epochUpdates += result.crossings
     }
 
     expect(epochUpdates).toBe(0)
@@ -116,36 +118,59 @@ describe('date advancement math', () => {
     // 3.5 simulated days per frame (warp = 3.5 d/s at 1 s/frame).
     // 3.5 = 7/2 is exact in IEEE 754, so 3.5 + 3.5 = 7.0 without drift.
     // Every 2 frames the 7-day threshold is reached; 10 frames → 5 updates.
-    let accumulator = 0
+    let state = createOrbitEpochCadenceState()
     let epochUpdates = 0
     const warpDaysPerSecond = 3.5
     const frameDelta = 1.0
 
     for (let i = 0; i < 10; i++) {
-      accumulator += frameDelta * warpDaysPerSecond
-      if (accumulator >= 7) {
-        accumulator = 0
-        epochUpdates++
-      }
+      const result = advanceOrbitEpochCadence(
+        state,
+        frameDelta * warpDaysPerSecond,
+      )
+      state = result.nextState
+      epochUpdates += result.crossings
     }
 
     expect(epochUpdates).toBe(5)
   })
 
   it('triggers no orbit-epoch updates while paused regardless of frame count', () => {
-    let accumulator = 0
+    // When paused the hook does not call advanceOrbitEpochCadence at all
+    // (the simulated-day advance is zero), so the cadence stays at zero.
+    let state = createOrbitEpochCadenceState()
     let epochUpdates = 0
-    const warpDaysPerSecond = 0 // paused
 
     for (let i = 0; i < 1000; i++) {
-      accumulator += 0.016 * warpDaysPerSecond
-      if (accumulator >= 7) {
-        accumulator = 0
-        epochUpdates++
-      }
+      const result = advanceOrbitEpochCadence(state, 0)
+      state = result.nextState
+      epochUpdates += result.crossings
     }
 
     expect(epochUpdates).toBe(0)
+  })
+
+  it('preserves sub-threshold remainder across crossings (issue #40 fix)', () => {
+    // The previous implementation zeroed the accumulator on every threshold
+    // crossing, dropping leftover simulated time. The cadence module now
+    // subtracts the threshold and carries the remainder forward, so 5 + 5 =
+    // 10 sim days → 1 crossing with 3 leftover, not 0 leftover.
+    let state = createOrbitEpochCadenceState()
+    let totalCrossings = 0
+    const warpDaysPerSecond = 1
+    const frameDelta = 5 // 5 sim days per frame at warp 1, 1 s/frame
+
+    for (let i = 0; i < 2; i++) {
+      const result = advanceOrbitEpochCadence(
+        state,
+        frameDelta * warpDaysPerSecond,
+      )
+      state = result.nextState
+      totalCrossings += result.crossings
+    }
+
+    expect(totalCrossings).toBe(1)
+    expect(state.accumulatorDays).toBeCloseTo(3)
   })
 })
 
