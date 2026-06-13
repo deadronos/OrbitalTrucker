@@ -243,4 +243,69 @@ describe('stepShipPhysics', () => {
     expect(state.angularVelocity.pitch).toBe(0)
     expect(state.rotationAssist).toBe(true)
   })
+
+  // ── Stale-orientation regression (issue #42) ───────────────────────────
+
+  it('returned orientation reflects post-step yaw, not pre-step yaw', () => {
+    // Regression: if stepShipPhysics returned the orientation computed BEFORE
+    // the angular-velocity integration, the returned forward vector would still
+    // point along the old heading.  The previous test (above) did not catch
+    // this because it compared against state.yaw/pitch which are already
+    // mutated by the time we read them.  This test captures the pre-step
+    // orientation explicitly and asserts the return differs.
+    const state = createInitialShipState()
+    state.rotationAssist = false
+    state.yaw = 0
+    state.pitch = 0
+
+    const preStepOrientation = getShipOrientationFromAngles(
+      state.yaw,
+      state.pitch,
+    )
+
+    // Apply a large yaw rotation over a long timestep so the difference
+    // between pre-step and post-step is unmissable.
+    const result = stepShipPhysics(state, new Set(['ArrowLeft']), 2.0)
+
+    // The ship should have rotated significantly.
+    expect(state.yaw).not.toBeCloseTo(0, 3)
+
+    // The returned forward MUST match the post-integration orientation.
+    const postStepOrientation = getShipOrientationFromAngles(
+      state.yaw,
+      state.pitch,
+    )
+    expect(result.forward.distanceTo(postStepOrientation.forward)).toBeLessThan(
+      1e-6,
+    )
+
+    // And it MUST NOT equal the pre-step orientation (which would indicate
+    // the return statement was placed before the integration block).
+    expect(
+      result.forward.distanceTo(preStepOrientation.forward),
+    ).toBeGreaterThan(0.1)
+  })
+
+  it('returned orientation reflects post-step pitch after a pitch input', () => {
+    const state = createInitialShipState()
+    state.rotationAssist = false
+    state.yaw = 0
+    state.pitch = 0
+
+    const preStepOrientation = getShipOrientationFromAngles(
+      state.yaw,
+      state.pitch,
+    )
+
+    const result = stepShipPhysics(state, new Set(['ArrowUp']), 2.0)
+
+    expect(state.pitch).toBeGreaterThan(0)
+
+    const postStepOrientation = getShipOrientationFromAngles(
+      state.yaw,
+      state.pitch,
+    )
+    expect(result.up.distanceTo(postStepOrientation.up)).toBeLessThan(1e-6)
+    expect(result.up.distanceTo(preStepOrientation.up)).toBeGreaterThan(0.01)
+  })
 })
