@@ -2,6 +2,8 @@ import { Vector3 } from 'three'
 import { describe, expect, it } from 'vitest'
 
 import { planTransfer, type TransferPlannerStatus } from '../../src/simulation/transfer-planner'
+import { createEphemerisSolarBodyResolver, resolveLocationPosition } from '../../src/world/locations'
+import { SUN } from '../../src/solar-data'
 
 const BASE_DATE = new Date('2026-03-30T00:00:00.000Z')
 
@@ -371,6 +373,48 @@ function createLinearResolver(
     return target.start.clone().addScaledVector(target.velocity, elapsedSeconds)
   }
 }
+
+describe('planTransfer with real location resolution', () => {
+  it('resolves a planet destination to its correct heliocentric position, not the Sun', () => {
+    // Regression: verify that the production resolver closure used in
+    // buildPlannerResult correctly resolves solar-body destinations.
+    const fallbackResolver = createEphemerisSolarBodyResolver()
+    const bodyPositions = new Map() // empty, like initial frame
+    const zeroVector = new Vector3(0, 0, 0)
+
+    const resolveDestinationPosition = (resolveId: string, resolveDate: Date) =>
+      resolveLocationPosition(resolveId, {
+        date: resolveDate,
+        resolveSolarBodyPosition: (bodyName: string, bodyDate: Date) => {
+          if (bodyName === SUN.name) return zeroVector
+          return (
+            bodyPositions.get(bodyName) ??
+            fallbackResolver(bodyName, bodyDate)
+          )
+        },
+      })
+
+    const plan = planTransfer({
+      date: BASE_DATE,
+      shipPosition: new Vector3(1.04, 0.012, 0.02),
+      shipVelocity: new Vector3(0, 0, 0),
+      shipForward: new Vector3(1, 0, 0),
+      destinationId: 'mars',
+      resolveDestinationPosition,
+    })
+
+    // Mars at BASE_DATE should be at ~1.5 AU from the Sun, not (0,0,0).
+    expect(plan.destination.currentPosition.length()).toBeGreaterThan(0.1)
+    expect(plan.guidance.aimPosition.length()).toBeGreaterThan(0.1)
+    // The aim position should be Mars, not the Sun. If aiming at the
+    // Sun the planned distance would equal shipPos.length() (~1.04).
+    // Mars at BASE_DATE is ~1.38 AU from origin; ship-to-Mars is ~0.58 AU
+    // vs ship-to-Sun ~1.04 AU.
+    expect(
+      plan.travel.plannedDistanceAu,
+    ).toBeLessThan(1.0)
+  })
+})
 
 function createCircularOrbitResolver(
   destinationId: string,
