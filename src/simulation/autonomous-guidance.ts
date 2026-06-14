@@ -8,7 +8,10 @@ import {
   type ShipState,
 } from './physics'
 import { directionToYawPitch } from './trajectory'
-import type { TransferPlannerResult } from './transfer-planner'
+import type {
+  ShipCapabilities,
+  TransferPlannerResult,
+} from './transfer-planner'
 
 export type AutonomousGuidancePhase =
   | 'acquiring'
@@ -40,15 +43,25 @@ const BRAKE_EXIT_RATIO = 0.45
 const STEERING_DEADZONE_RAD = 0.015
 const STEERING_FULL_SCALE_RAD = 0.35
 const STEERING_DAMPING_SECONDS = 1.2
+const LEAD_PURSUIT_FALLBACK_AU = 0.05
 
 export function computeAutonomousGuidance(
   shipState: ShipState,
   plannerResult: TransferPlannerResult,
   previousPhase?: AutonomousGuidancePhase,
 ): AutonomousGuidanceResult {
+  const leadWeight = computeLeadWeight(
+    plannerResult,
+    plannerCapabilities(plannerResult),
+  )
+  const liveLead = computeLiveLeadPosition(plannerResult, leadWeight)
+  const blendedAim = plannerResult.guidance.aimPosition
+    .clone()
+    .lerp(liveLead, leadWeight)
+  const effectiveAimOffset = blendedAim.sub(shipState.position)
   const desiredDirection =
-    plannerResult.guidance.direction.lengthSq() > 0
-      ? plannerResult.guidance.direction.clone().normalize()
+    effectiveAimOffset.lengthSq() > 0
+      ? effectiveAimOffset.normalize()
       : new Vector3(1, 0, 0)
   const { forward, right, up } = getShipOrientationFromAngles(
     shipState.yaw,
@@ -247,6 +260,63 @@ function dampedAxis(value: number): number {
   }
 
   return Math.max(-0.75, Math.min(0.75, value))
+}
+
+function plannerCapabilities(
+  _plannerResult: TransferPlannerResult,
+): ShipCapabilities | null {
+  // The planner capability is not currently threaded through the
+  // planner result. We use the default lead-pursuit full-scale for
+  // guidance consumers that have not opted in via a capability. This
+  // helper exists so a future change can thread capabilities through
+  // the orchestrator without touching the call sites.
+  return {
+    leadPursuitFullScaleAu: LEAD_PURSUIT_FALLBACK_AU,
+  } as ShipCapabilities
+}
+
+function computeLeadWeight(
+  plannerResult: TransferPlannerResult,
+  capabilities: ShipCapabilities | null,
+): number {
+  if (
+    plannerResult.status === 'intercept-overrun' ||
+    plannerResult.status === 'lead-chase'
+  ) {
+    return 1
+  }
+
+  const fullScale =
+    capabilities?.leadPursuitFullScaleAu ?? LEAD_PURSUIT_FALLBACK_AU
+  if (fullScale <= 0) {
+    return 0
+  }
+
+  const motion = plannerResult.travel.targetMotionDuringInterceptAu
+  const weight = motion / fullScale
+
+  return weight < 0 ? 0 : weight > 1 ? 1 : weight
+}
+
+function computeLiveLeadPosition(
+  plannerResult: TransferPlannerResult,
+  leadWeight: number,
+): Vector3 {
+  if (leadWeight <= 0) {
+    return plannerResult.guidance.aimPosition.clone()
+  }
+
+  const remainingSeconds =
+    plannerResult.travel.interceptTimeSeconds ??
+    (plannerResult.travel.etaDays
+      ? plannerResult.travel.etaDays * 86_400
+      : 0)
+  return plannerResult.destination.currentPosition
+    .clone()
+    .addScaledVector(
+      plannerResult.guidance.requiredArrivalVelocity,
+      remainingSeconds,
+    )
 }
 
 function clampPositive(value: number): number {

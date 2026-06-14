@@ -42,6 +42,7 @@ describe('computeAutonomousGuidance', () => {
 
   it('treats pitch-aligned elevated targets as cruise-ready', () => {
     const state = createInitialShipState()
+    state.position.set(0, 0, 0)
     state.yaw = 0
     state.pitch = Math.PI / 4
 
@@ -58,6 +59,7 @@ describe('computeAutonomousGuidance', () => {
 
   it('tapers cruise thrust as stopping distance approaches remaining range', () => {
     const state = createInitialShipState()
+    state.position.set(0, 0, 0)
     state.yaw = 0
     state.pitch = 0
     state.velocity.set(Math.sqrt(2 * 0.000016 * 0.6), 0, 0)
@@ -106,6 +108,7 @@ describe('computeAutonomousGuidance', () => {
 
   it('changes steering command when the destination changes', () => {
     const state = createInitialShipState()
+    state.position.set(0, 0, 0)
     state.yaw = 0
     state.pitch = 0
 
@@ -257,6 +260,7 @@ function createPlan(
       aimPosition,
       direction: direction.clone().normalize(),
       bearingAngleDeg,
+      requiredArrivalVelocity: new Vector3(0, 0, 0),
     },
     travel: {
       currentDistanceAu: plannedDistanceAu,
