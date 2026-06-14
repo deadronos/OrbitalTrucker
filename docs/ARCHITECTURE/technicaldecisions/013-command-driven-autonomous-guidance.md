@@ -2,6 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-03-30
+- **Last updated:** 2026-06-14
 - **Related:** ADR 005 (shift normal play to autonomous space trucking), ADR 011 (destination catalog, moon ephemerides, transfer planning, and autonomous guidance), ADR 012 (transfer planner with intercept prediction and capability-aware inputs)
 
 ## Context
@@ -95,6 +96,16 @@ main interaction model. The player-facing normal-play controls are:
 - managing time warp
 
 Any retained developer-only manual controls remain outside the normal-play UX.
+
+### Implementation status (2026-06-14)
+
+Issue #47 closed the prototype-era legacy that this ADR was leaving as
+debug-only. The `useKeyboardInput`, `usePointerInput`, and `useAutoOrient` hooks
+have been deleted, the `shipControlsFromKeys` helper and the `Set<string>`
+overload on `stepShipPhysics` have been removed, and the corresponding unit
+tests now drive `stepShipPhysics` with `ShipControlInput` objects directly. The
+physics backend accepts a `ShipControlInput` produced by
+`computeAutonomousGuidance` and nothing else.
 
 ## Consequences
 
