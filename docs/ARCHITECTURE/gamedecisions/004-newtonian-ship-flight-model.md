@@ -2,6 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-03-29
+- **Last updated:** 2026-06-14
 - **Supersedes:** ADR 002 (arcade-friendly inertial flight)
 
 ## Context
@@ -30,7 +31,7 @@ freighter, satisfying the acceptance criteria from the tracked issue:
 
 Newton's second law governs all thrust:
 
-```
+```text
 Δv = (F / m) × Δt
 ```
 
@@ -38,7 +39,7 @@ In engine units `F/m` collapses to a single `thrustPower` scalar
 (`0.000016 AU s⁻²` normal, `0.00006 AU s⁻²` boosted). The ship's velocity
 is updated each frame:
 
-```
+```text
 velocity += normalize(thrustDirection) × thrustPower × Δt
 position += velocity × Δt
 ```
@@ -49,50 +50,48 @@ velocity until the pilot fires retro-thrusters or uses the kill-velocity assist.
 ### Rotational motion
 
 The ship carries an angular velocity vector `{ yaw, pitch }` measured in
-radians per second. Arrow-key inputs apply angular acceleration
+radians per second. Guidance commands on `ShipControlInput.yaw` and
+`ShipControlInput.pitch` apply angular acceleration
 (`ANGULAR_THRUST_RAD_PER_S2`) each frame:
 
-```
-angularVelocity.yaw   += ±ANGULAR_THRUST_RAD_PER_S2 × Δt   (← → keys)
-angularVelocity.pitch += ±ANGULAR_THRUST_RAD_PER_S2 × Δt   (↑ ↓ keys)
+```text
+angularVelocity.yaw   += ShipControlInput.yaw   × ANGULAR_THRUST_RAD_PER_S2 × Δt
+angularVelocity.pitch += ShipControlInput.pitch × ANGULAR_THRUST_RAD_PER_S2 × Δt
 ```
 
 The accumulated angular velocity is then integrated into the ship's attitude:
 
-```
+```text
 yaw   += angularVelocity.yaw   × Δt
 pitch += angularVelocity.pitch × Δt          (clamped to ±PITCH_LIMIT_RAD)
 ```
-
-Mouse drag continues to apply direct yaw/pitch deltas (an attitude-hold
-control surface, like a reaction-control system joystick) without affecting
-`angularVelocity`.
 
 ### Assist modes
 
 | Mode | Trigger | Behaviour |
 |------|---------|-----------|
-| **Kill velocity** | `Space` (hold) | Fires retro-thrusters; velocity decays toward zero at `TRANSLATION_BRAKE_FACTOR × Δt` per frame |
-| **Kill rotation** | `R` (hold) | Fires rotational retro-thrusters; angular velocity decays at `ROTATION_BRAKE_FACTOR × Δt` per frame |
-| **Rotation assist** | `F` (toggle) | When on (default), auto-damps angular velocity whenever no arrow-key rotation input is active; emulates a stability-control computer |
+| **Kill velocity** | `ShipControlInput.brakeTranslation = true` | Fires retro-thrusters; velocity decays toward zero at `TRANSLATION_BRAKE_FACTOR × Δt` per frame |
+| **Kill rotation** | `ShipControlInput.brakeRotation = true` | Fires rotational retro-thrusters; angular velocity decays at `ROTATION_BRAKE_FACTOR × Δt` per frame |
+| **Rotation assist** | `ShipState.rotationAssist = true` (default) | When on, auto-damps angular velocity whenever no yaw/pitch command is active; emulates a stability-control computer |
 
 ## Control scheme
 
-| Key(s) | Action |
-|--------|--------|
-| `W` / `S` | Forward / backward thrust |
-| `A` / `D` | Left / right strafe thrust |
-| `Q` / `E` | Up / down vertical thrust |
-| `Shift` | Boost (3.75 × thrust and angular acceleration) |
-| `←` / `→` | Yaw left / right (rotational thruster) |
-| `↑` / `↓` | Pitch up / down (rotational thruster) |
-| Mouse drag | Direct attitude (yaw / pitch) control |
-| `Space` | Kill velocity (hold to brake) |
-| `R` | Kill rotation (hold to stop spin) |
-| `F` | Toggle rotation assist on / off |
-| `T` | Orient to selected target |
-| `[` / `]` | Time warp speed |
-| Scroll wheel | Chase-camera zoom |
+The Newtonian flight model is driven by a `ShipControlInput` command object
+produced by the guidance layer (see [ADR 013](../technicaldecisions/013-command-driven-autonomous-guidance.md)).
+The physics engine itself has no key bindings; the values below are
+**thrust intent fields** on the command object and are populated by
+`computeAutonomousGuidance`, not by the keyboard.
+
+| `ShipControlInput` field | Meaning |
+|--------------------------|---------|
+| `forward` / `right` / `up` | Linear thrust intent on the ship-local axes, range `[-1, 1]` |
+| `yaw` / `pitch` | Rotational thrust intent, range `[-1, 1]` |
+| `boost` | When `true`, linear and rotational thrust use the boosted scalars |
+| `brakeTranslation` | When `true`, retro-thrusters decay linear velocity |
+| `brakeRotation` | When `true`, retro-thrusters decay angular velocity |
+
+The only retained player-facing input is the time-warp keys (`[` / `]`) bound
+in `App.tsx`; all other manual piloting was removed in issue #47.
 
 ## Consequences
 
@@ -107,10 +106,10 @@ control surface, like a reaction-control system joystick) without affecting
 
 ### Negative
 
-- Without passive drag, the pilot must actively brake to stop. New players may
-  find this initially disorienting.
-- Arrow-key rotation adds a second steering mechanism alongside mouse drag;
-  the dual input modes require clear documentation.
+- Without passive drag, the guidance layer must request a translational brake
+  near arrival; otherwise the ship coasts. New players do not see this
+  directly, but the guidance heuristics that decide when to brake become part
+  of the visible ship behaviour.
 
 ## Follow-up
 

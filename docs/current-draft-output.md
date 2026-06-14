@@ -15,7 +15,7 @@ The app now provides:
 - realistic orbital spacing in astronomical units (AU)
 - placeholder visible geometry for all celestial bodies and the freighter
 - low-precision J2000 Keplerian orbital motion for planetary positions
-- a flyable placeholder cargo freighter with inertial controls
+- a placeholder cargo freighter steered by the autonomous guidance layer
 - a chase camera managed inside the R3F scene loop
 - a HUD for date, time warp, ship speed, heliocentric distance, selected target, and target range
 - target selection controls for the Sun and all currently rendered bodies
@@ -120,17 +120,18 @@ The physics model for the planets remains intentionally lightweight but grounded
 
 ### Ship behavior
 
-The player freighter still uses an accessible inertial flight model rather than full gravity-driven mission planning.
+The player freighter is steered by the autonomous guidance layer described in
+[ADR 005](../ARCHITECTURE/gamedecisions/005-shift-to-autonomous-space-trucking.md)
+and [ADR 013](../ARCHITECTURE/technicaldecisions/013-command-driven-autonomous-guidance.md).
+The player does not pilot the ship directly; the flight computer reacts to the
+selected destination and produces the thrust, steering, and braking commands
+fed into the Newtonian physics backend.
 
-Current controls include:
+Player-facing controls are limited to:
 
-- `W`, `A`, `S`, `D` for forward and lateral thrust
-- `Q`, `E` for vertical thrust
-- `Shift` for boost
-- `Space` for dampening
-- drag to rotate heading
-- mouse wheel to adjust chase-camera distance
-- `[` and `]` to change time warp
+- destination selection from the navigation panel
+- time-warp adjustment via the `[` and `]` keys (or the HUD buttons)
+- the pause / resume / faster / slower time buttons in the metrics panel
 
 ## Visual and scaling approach
 
