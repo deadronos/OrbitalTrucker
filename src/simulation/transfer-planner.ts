@@ -125,7 +125,10 @@ export function planTransfer({
   let solutionErrorSeconds: number | null = null
 
   if (planningSpeedAuPerSec >= capabilities.minimumPlanningSpeedAuPerSec) {
-    const initialInterceptSeconds = solveConstantSpeedInterceptTime(
+    // Seed the iteration with the closed-form quadratic solution under
+    // the constant-velocity assumption. The curve-resolved iteration
+    // then refines against the actual curve, correcting for curvature.
+    const seedSeconds = solveConstantSpeedInterceptTime(
       shipPosition,
       currentPosition,
       estimatedVelocityAuPerSec,
@@ -133,10 +136,29 @@ export function planTransfer({
       maxLookaheadSeconds,
     )
 
-    if (initialInterceptSeconds === null) {
-      status = 'no-solution'
+    if (seedSeconds === null) {
+      // No real constant-speed root exists. Treat as overrun: still
+      // produce a lead-chase fallback so the ship has a heading.
+      const naiveEtaSeconds = shipPosition.distanceTo(currentPosition) /
+        planningSpeedAuPerSec
+      const leadPosition = currentPosition.clone().addScaledVector(
+        estimatedVelocityAuPerSec,
+        naiveEtaSeconds,
+      )
+      predictedPosition = leadPosition
+      predictedDate = addSeconds(date, naiveEtaSeconds)
+      interceptTimeSeconds = naiveEtaSeconds
+      aimPosition = leadPosition
+      status = 'lead-chase'
     } else {
-      interceptTimeSeconds = initialInterceptSeconds
+      let candidateSeconds = seedSeconds
+      let converged = false
+      let lastUsableCandidateSeconds: number | null = candidateSeconds
+      let lastUsablePosition: Vector3 | null = resolveDestinationPosition(
+        destinationId,
+        addSeconds(date, candidateSeconds),
+      )
+      let lastUsableDate: Date | null = addSeconds(date, candidateSeconds)
 
       for (
         let iteration = 1;
@@ -145,53 +167,56 @@ export function planTransfer({
       ) {
         iterations = iteration
 
-        const candidateDate = addSeconds(date, interceptTimeSeconds)
+        const candidateDate = addSeconds(date, candidateSeconds)
         const candidatePosition = resolveDestinationPosition(
           destinationId,
           candidateDate,
         )
-        const nextInterceptSeconds =
-          shipPosition.distanceTo(candidatePosition) / planningSpeedAuPerSec
+        const nextSeconds = shipPosition.distanceTo(candidatePosition) /
+          planningSpeedAuPerSec
 
-        solutionErrorSeconds = Math.abs(
-          nextInterceptSeconds - interceptTimeSeconds,
-        )
+        solutionErrorSeconds = Math.abs(nextSeconds - candidateSeconds)
+        lastUsableCandidateSeconds = candidateSeconds
+        lastUsablePosition = candidatePosition.clone()
+        lastUsableDate = candidateDate
 
-        predictedPosition = candidatePosition.clone()
-        predictedDate = candidateDate
-        interceptTimeSeconds = nextInterceptSeconds
-
-        if (interceptTimeSeconds > maxLookaheadSeconds) {
-          status = 'no-solution'
-          predictedPosition = currentPosition.clone()
-          predictedDate = null
-          interceptTimeSeconds = null
-          solutionErrorSeconds = null
+        if (candidateSeconds > maxLookaheadSeconds) {
+          if (lastUsablePosition && lastUsableCandidateSeconds !== null &&
+              lastUsableCandidateSeconds <= maxLookaheadSeconds) {
+            predictedPosition = lastUsablePosition
+            predictedDate = lastUsableDate
+            interceptTimeSeconds = lastUsableCandidateSeconds
+            status = 'intercept-overrun'
+          } else {
+            status = 'no-solution'
+          }
           break
         }
 
         if (solutionErrorSeconds <= capabilities.interceptConvergenceSeconds) {
+          predictedPosition = candidatePosition.clone()
+          predictedDate = candidateDate
+          interceptTimeSeconds = candidateSeconds
           aimPosition = candidatePosition.clone()
+          converged = true
           status =
             currentPosition.distanceTo(candidatePosition) > MIN_TARGET_MOTION_AU
               ? 'future-intercept'
               : 'current-position'
           break
         }
+
+        candidateSeconds = nextSeconds
       }
 
-      if (iterations === capabilities.maxInterceptIterations) {
-        const converged =
-          solutionErrorSeconds !== null &&
-          solutionErrorSeconds <= capabilities.interceptConvergenceSeconds
-
-        if (!converged) {
+      if (!converged && iterations === capabilities.maxInterceptIterations) {
+        if (lastUsablePosition && lastUsableCandidateSeconds !== null) {
+          predictedPosition = lastUsablePosition
+          predictedDate = lastUsableDate
+          interceptTimeSeconds = lastUsableCandidateSeconds
+          status = 'intercept-overrun'
+        } else {
           status = 'no-solution'
-          aimPosition = currentPosition.clone()
-          predictedPosition = currentPosition.clone()
-          predictedDate = null
-          interceptTimeSeconds = null
-          solutionErrorSeconds = null
         }
       }
     }
@@ -221,6 +246,11 @@ export function planTransfer({
       aimPosition: aimPosition.clone(),
       direction: route.directionToTarget,
       bearingAngleDeg: route.bearingAngleDeg,
+      requiredArrivalVelocity: computeArrivalVelocity(
+        destinationId,
+        predictedDate ?? date,
+        resolveDestinationPosition,
+      ),
     },
     travel: {
       currentDistanceAu,
@@ -256,7 +286,20 @@ function estimateTargetVelocity(
   return sampled.sub(current).divideScalar(sampleSeconds)
 }
 
-function solveConstantSpeedInterceptTime(
+function computeArrivalVelocity(
+  destinationId: string,
+  date: Date,
+  resolveDestinationPosition: (destinationId: string, date: Date) => Vector3,
+): Vector3 {
+  const current = resolveDestinationPosition(destinationId, date)
+  const next = resolveDestinationPosition(
+    destinationId,
+    addSeconds(date, 1),
+  )
+  return next.sub(current)
+}
+
+export function solveConstantSpeedInterceptTime(
   shipPosition: Vector3,
   targetPosition: Vector3,
   targetVelocity: Vector3,
