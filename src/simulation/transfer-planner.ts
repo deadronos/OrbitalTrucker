@@ -137,7 +137,6 @@ export function planTransfer({
     )
 
     if (seedSeconds === null) {
-      // No real constant-speed root exists. Treat as overrun: still
       // No real constant-speed root exists. Treat as lead-chase: still
       // produce a lead-chase fallback so the ship has a heading.
       const naiveEtaSeconds = shipPosition.distanceTo(currentPosition) /
