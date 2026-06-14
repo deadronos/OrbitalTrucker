@@ -33,7 +33,10 @@ describe('missions', () => {
       (id) => id === 'luna-logistics-base' || id === 'earth-orbit-freight-ring',
     )
     const hasJovianDestination = ids.some(
-      (id) => id.includes('callisto') || id.includes('ganymede') || id.includes('europa'),
+      (id) =>
+        id.includes('callisto') ||
+        id.includes('ganymede') ||
+        id.includes('europa'),
     )
 
     expect(hasMarsDestination).toBe(true)
@@ -88,9 +91,9 @@ describe('mission state machine', () => {
   const mars = getMissionById('mars-supply-run')!
 
   it('promotes active → in-transit when ship arrives at the origin', () => {
-    expect(
-      getNextMissionStatus(mars, 'active', 'arrived', mars.originId),
-    ).toBe('in-transit')
+    expect(getNextMissionStatus(mars, 'active', 'arrived', mars.originId)).toBe(
+      'in-transit',
+    )
   })
 
   it('does not promote active → in-transit when ship has not arrived', () => {
@@ -100,30 +103,20 @@ describe('mission state machine', () => {
   })
 
   it('does not promote active → in-transit at a non-origin location', () => {
-    expect(
-      getNextMissionStatus(mars, 'active', 'arrived', 'earth'),
-    ).toBe('active')
+    expect(getNextMissionStatus(mars, 'active', 'arrived', 'earth')).toBe(
+      'active',
+    )
   })
 
   it('promotes in-transit → completed when ship arrives at the destination', () => {
     expect(
-      getNextMissionStatus(
-        mars,
-        'in-transit',
-        'arrived',
-        mars.destinationId,
-      ),
+      getNextMissionStatus(mars, 'in-transit', 'arrived', mars.destinationId),
     ).toBe('completed')
   })
 
   it('does not promote in-transit → completed when ship is still travelling', () => {
     expect(
-      getNextMissionStatus(
-        mars,
-        'in-transit',
-        'cruising',
-        mars.destinationId,
-      ),
+      getNextMissionStatus(mars, 'in-transit', 'cruising', mars.destinationId),
     ).toBe('in-transit')
   })
 
@@ -166,10 +159,20 @@ describe('mission state machine', () => {
 
   it('returns the unchanged status when no mission is provided', () => {
     expect(
-      getNextMissionStatus(undefined, 'active', 'arrived', 'earth-orbit-freight-ring'),
+      getNextMissionStatus(
+        undefined,
+        'active',
+        'arrived',
+        'earth-orbit-freight-ring',
+      ),
     ).toBe('active')
     expect(
-      getNextMissionStatus(undefined, 'in-transit', 'arrived', 'mars-high-port'),
+      getNextMissionStatus(
+        undefined,
+        'in-transit',
+        'arrived',
+        'mars-high-port',
+      ),
     ).toBe('in-transit')
   })
 })

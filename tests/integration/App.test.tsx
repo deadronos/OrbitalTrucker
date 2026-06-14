@@ -124,8 +124,38 @@ describe('AppShell', () => {
       screen.queryByTestId('accept-mission-lunar-logistics-delivery'),
     ).toBeNull()
 
-    // 2. Simulate the autonomous guidance stack reporting 'arrived' at the
+    // 2. Reroute to the contract's origin and arrive. The new
+    //    `active → in-transit` transition is driven by the same
+    //    autonomous guidance signal that triggers completion.
+    await user.selectOptions(
+      screen.getByLabelText('Current destination'),
+      'earth-orbit-freight-ring',
+    )
+    expect(lastDestination).toBe('earth-orbit-freight-ring')
+    act(() => {
+      pushMetrics?.({
+        simulatedDate: new Date('2026-04-05T12:00:00.000Z'),
+        shipSpeedKmPerSecond: 0,
+        heliocentricDistanceAu: 1.0,
+        currentTargetDistanceAu: 0,
+        plannedDistanceAu: 0,
+        plannerStatus: 'current-position',
+        autonomousPhase: 'arrived',
+        targetBearingDeg: 0,
+        etaDays: 0,
+        interceptTimeSeconds: 0,
+        interceptDate: new Date('2026-04-05T12:00:00.000Z'),
+        targetMotionDuringInterceptAu: 0,
+      })
+    })
+    expect(screen.getByText('Cargo loaded')).toBeInTheDocument()
+
+    // 3. Simulate the autonomous guidance stack reporting 'arrived' at the
     //    mission destination, which is what triggers completion in App.
+    await user.selectOptions(
+      screen.getByLabelText('Current destination'),
+      'mars-high-port',
+    )
     act(() => {
       pushMetrics?.({
         simulatedDate: new Date('2026-04-12T12:00:00.000Z'),
@@ -147,15 +177,16 @@ describe('AppShell', () => {
     expect(screen.getByText('Delivery complete')).toBeInTheDocument()
     expect(screen.getByText('Delivered ✓')).toBeInTheDocument()
 
-    // 3. The board unlocks and a *different* contract can be accepted.
+    // 4. The board unlocks and a *different* contract can be accepted.
     const nextAccept = screen.getByTestId(
       'accept-mission-jovian-outpost-resupply',
     )
     await user.click(nextAccept)
 
-    // The new contract is now active, the completion banner is gone, and the
-    // delivered mission remains on the board as a completed row.
-    expect(screen.getByText('Active contract')).toBeInTheDocument()
+    // The new contract is now active (Pickup banner), the completion
+    // banner is gone, and the delivered mission remains on the board as
+    // a completed row.
+    expect(screen.getByText('Pickup')).toBeInTheDocument()
     expect(screen.queryByText('Delivery complete')).toBeNull()
     expect(
       screen.queryByTestId('accept-mission-jovian-outpost-resupply'),
@@ -228,7 +259,7 @@ describe('freight contract loop', () => {
     )
     pushMetrics({ autonomousPhase: 'arrived' })
     expect(screen.queryByText('Delivery complete')).toBeNull()
-    expect(screen.getByText('Active contract')).toBeNull()
+    expect(screen.queryByText('Active contract')).toBeNull()
     expect(screen.getByText('Pickup')).toBeInTheDocument()
 
     // 3. Reroute to the origin and arrive. Cargo should be loaded.
@@ -256,24 +287,32 @@ describe('freight contract loop', () => {
 
     // First mount: accept and complete a contract.
     const first = renderWithController()
-    pushMetrics()
-    await user.click(screen.getByTestId('accept-mission-lunar-logistics-delivery'))
+    first.pushMetrics()
+    await user.click(
+      screen.getByTestId('accept-mission-lunar-logistics-delivery'),
+    )
     await user.selectOptions(
       screen.getByLabelText('Current destination'),
       'cislunar-transfer-station',
     )
-    pushMetrics()
+    first.pushMetrics()
     await user.selectOptions(
       screen.getByLabelText('Current destination'),
       'luna-logistics-base',
     )
-    pushMetrics()
+    first.pushMetrics()
 
     expect(window.localStorage.getItem('orbitaltrucker.credits')).toBe('1800')
     first.unmount()
 
     // Second mount: the balance is restored.
-    renderWithController()
+    const second = renderWithController()
+    // The balance is loaded synchronously from localStorage during the
+    // App's initial state, so the panel header should already show it
+    // before any metrics are pushed.
     expect(screen.getByText(/Balance: 1,800 cr/)).toBeInTheDocument()
+    // Push an initial metrics frame so the App's effect graph is
+    // quiesced (matches the helper used elsewhere in this file).
+    second.pushMetrics()
   })
 })

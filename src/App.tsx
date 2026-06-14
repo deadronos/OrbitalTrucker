@@ -32,11 +32,7 @@ import {
   getNextMissionStatus,
   type MissionStatus,
 } from './world/missions'
-import {
-  awardCredits,
-  loadCredits,
-  saveCredits,
-} from './world/credits'
+import { awardCredits, loadCredits, saveCredits } from './world/credits'
 
 /**
  * Heavy 3D engine chunk (Three.js, R3F, Drei, all scene components) is loaded
