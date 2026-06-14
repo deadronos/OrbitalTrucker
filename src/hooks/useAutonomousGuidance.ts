@@ -131,7 +131,7 @@ function buildPlannerResult(
     shipState.pitch,
   )
 
-  return planTransfer({
+  const result = planTransfer({
     date: simulatedDate,
     shipPosition: shipState.position,
     shipVelocity: shipState.velocity,
@@ -152,4 +152,6 @@ function buildPlannerResult(
         },
       }),
   })
+
+  return result
 }

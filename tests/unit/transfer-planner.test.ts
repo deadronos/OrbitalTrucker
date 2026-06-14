@@ -414,6 +414,49 @@ describe('planTransfer with real location resolution', () => {
       plan.travel.plannedDistanceAu,
     ).toBeLessThan(1.0)
   })
+
+  it('resolves Uranus correctly, not as the Sun', () => {
+    const fallbackResolver = createEphemerisSolarBodyResolver()
+    const bodyPositions = new Map()
+    const zeroVector = new Vector3(0, 0, 0)
+
+    const resolveDestinationPosition = (resolveId: string, resolveDate: Date) =>
+      resolveLocationPosition(resolveId, {
+        date: resolveDate,
+        resolveSolarBodyPosition: (bodyName: string, bodyDate: Date) => {
+          if (bodyName === SUN.name) return zeroVector
+          return (
+            bodyPositions.get(bodyName) ??
+            fallbackResolver(bodyName, bodyDate)
+          )
+        },
+      })
+
+    const plan = planTransfer({
+      date: BASE_DATE,
+      shipPosition: new Vector3(1.04, 0.012, 0.02),
+      shipVelocity: new Vector3(0, 0, 0),
+      shipForward: new Vector3(1, 0, 0),
+      destinationId: 'uranus',
+      resolveDestinationPosition,
+    })
+
+    // Uranus should be far from the Sun (~19 AU).
+    expect(plan.destination.currentPosition.length()).toBeGreaterThan(15)
+    expect(plan.guidance.aimPosition.length()).toBeGreaterThan(15)
+    // The planned distance should be much less than the current distance
+    // (ship-to-Sun ~1.04 AU vs ship-to-Uranus ~18+ AU).
+    // But with current-position status they'll be equal. The point is
+    // that currentPosition is actually Uranus, not the Sun.
+    expect(plan.destination.currentPosition.length()).toBeGreaterThan(10)
+    expect(plan.guidance.aimPosition.length()).toBeGreaterThan(10)
+    // Diagnostic: verify aimPosition equals currentPosition
+    expect(plan.guidance.aimPosition.x).toBeCloseTo(plan.destination.currentPosition.x, 6)
+    expect(plan.guidance.aimPosition.y).toBeCloseTo(plan.destination.currentPosition.y, 6)
+    expect(plan.guidance.aimPosition.z).toBeCloseTo(plan.destination.currentPosition.z, 6)
+    // plannedDistanceAu should equal currentDistanceAu when aim=current
+    expect(plan.travel.plannedDistanceAu).toBeCloseTo(plan.travel.currentDistanceAu, 6)
+  })
 })
 
 function createCircularOrbitResolver(

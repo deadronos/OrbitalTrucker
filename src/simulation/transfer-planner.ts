@@ -105,7 +105,9 @@ export function planTransfer({
   }
   const planningSpeedAuPerSec =
     shipCapabilities?.assumedCruiseSpeedAuPerSec ?? shipVelocity.length()
-  const currentPosition = resolveDestinationPosition(destinationId, date)
+  // Clone immediately — the resolver may return a shared Vector3 from
+  // the bodyPositions Map that gets mutated between calls.
+  const currentPosition = resolveDestinationPosition(destinationId, date).clone()
   const currentDistanceAu = shipPosition.distanceTo(currentPosition)
   const estimatedVelocityAuPerSec = estimateTargetVelocity(
     destinationId,
@@ -278,14 +280,13 @@ function estimateTargetVelocity(
     return new Vector3(0, 0, 0)
   }
 
-  const current = resolveDestinationPosition(destinationId, date)
+  const current = resolveDestinationPosition(destinationId, date).clone()
   const sampled = resolveDestinationPosition(
     destinationId,
     addSeconds(date, sampleSeconds),
-  )
+  ).clone()
 
   return sampled.sub(current).divideScalar(sampleSeconds)
-  return sampled.clone().sub(current).divideScalar(sampleSeconds)
 }
 
 function computeArrivalVelocity(
@@ -293,13 +294,13 @@ function computeArrivalVelocity(
   date: Date,
   resolveDestinationPosition: (destinationId: string, date: Date) => Vector3,
 ): Vector3 {
-  const current = resolveDestinationPosition(destinationId, date)
+  const current = resolveDestinationPosition(destinationId, date).clone()
   const next = resolveDestinationPosition(
     destinationId,
     addSeconds(date, 1),
-  )
+  ).clone()
+
   return next.sub(current)
-  return next.clone().sub(current)
 }
 
 export function solveConstantSpeedInterceptTime(
