@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { act, useEffect } from 'react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { AppShell } from '../../src/App'
 import type { SimulatorCanvasProps } from '../../src/components/SimulatorCanvas'
@@ -160,5 +160,120 @@ describe('AppShell', () => {
     expect(
       screen.queryByTestId('accept-mission-jovian-outpost-resupply'),
     ).toBeNull()
+  })
+})
+
+describe('freight contract loop', () => {
+  afterEach(() => {
+    window.localStorage.clear()
+  })
+
+  type Metrics = Parameters<
+    NonNullable<SimulatorCanvasProps['onMetricsChange']>
+  >[0]
+
+  function renderWithController() {
+    let pushMetrics: ((metrics: Metrics) => void) | null = null
+
+    function Controller({
+      onMetricsChange,
+      selectedLocationId: _selectedLocationId,
+    }: SimulatorCanvasProps) {
+      pushMetrics = onMetricsChange
+      void _selectedLocationId
+      return null
+    }
+
+    const utils = render(<AppShell SceneComponent={Controller} />)
+    return {
+      ...utils,
+      pushMetrics: (override: Partial<Metrics> = {}) => {
+        const metrics: Metrics = {
+          simulatedDate: new Date('2026-04-12T12:00:00.000Z'),
+          shipSpeedKmPerSecond: 0,
+          heliocentricDistanceAu: 1.5,
+          currentTargetDistanceAu: 0,
+          plannedDistanceAu: 0,
+          plannerStatus: 'current-position',
+          autonomousPhase: 'arrived',
+          targetBearingDeg: 0,
+          etaDays: 0,
+          interceptTimeSeconds: 0,
+          interceptDate: new Date('2026-04-12T12:00:00.000Z'),
+          targetMotionDuringInterceptAu: 0,
+          ...override,
+        }
+        act(() => {
+          pushMetrics?.(metrics)
+        })
+      },
+    }
+  }
+
+  it('requires the player to visit the origin before completing a contract', async () => {
+    const user = userEvent.setup()
+    const { pushMetrics } = renderWithController()
+
+    pushMetrics()
+
+    // 1. Accept the contract.
+    await user.click(screen.getByTestId('accept-mission-mars-supply-run'))
+    expect(screen.getByText('Pickup')).toBeInTheDocument()
+    expect(screen.getByText('Earth Orbit Freight Ring')).toBeInTheDocument()
+
+    // 2. Fly straight to the destination. Completion must not fire.
+    await user.selectOptions(
+      screen.getByLabelText('Current destination'),
+      'mars-high-port',
+    )
+    pushMetrics({ autonomousPhase: 'arrived' })
+    expect(screen.queryByText('Delivery complete')).toBeNull()
+    expect(screen.getByText('Active contract')).toBeNull()
+    expect(screen.getByText('Pickup')).toBeInTheDocument()
+
+    // 3. Reroute to the origin and arrive. Cargo should be loaded.
+    await user.selectOptions(
+      screen.getByLabelText('Current destination'),
+      'earth-orbit-freight-ring',
+    )
+    pushMetrics()
+    expect(screen.getByText('Cargo loaded')).toBeInTheDocument()
+    expect(screen.getByText('Mars High Port')).toBeInTheDocument()
+
+    // 4. Fly to the destination and arrive. The mission should complete
+    //    and the credit balance should grow by the reward.
+    await user.selectOptions(
+      screen.getByLabelText('Current destination'),
+      'mars-high-port',
+    )
+    pushMetrics()
+    expect(screen.getByText('Delivery complete')).toBeInTheDocument()
+    expect(screen.getByText('+4,200 credits')).toBeInTheDocument()
+  })
+
+  it('persists the credit balance across remounts', async () => {
+    const user = userEvent.setup()
+
+    // First mount: accept and complete a contract.
+    const first = renderWithController()
+    pushMetrics()
+    await user.click(screen.getByTestId('accept-mission-lunar-logistics-delivery'))
+    await user.selectOptions(
+      screen.getByLabelText('Current destination'),
+      'cislunar-transfer-station',
+    )
+    pushMetrics()
+    await user.selectOptions(
+      screen.getByLabelText('Current destination'),
+      'luna-logistics-base',
+    )
+    pushMetrics()
+
+    expect(window.localStorage.getItem('orbitaltrucker.credits')).toBe('1800')
+    first.unmount()
+
+    // Second mount: the balance is restored.
+    renderWithController()
+    expect(screen.getByText(/Balance: 1,800 cr/)).toBeInTheDocument()
   })
 })

@@ -29,9 +29,14 @@ import {
 import {
   getMissionById,
   getMissionCatalog,
-  isMissionCompleted,
+  getNextMissionStatus,
   type MissionStatus,
 } from './world/missions'
+import {
+  awardCredits,
+  loadCredits,
+  saveCredits,
+} from './world/credits'
 
 /**
  * Heavy 3D engine chunk (Three.js, R3F, Drei, all scene components) is loaded
@@ -54,6 +59,11 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
   const [timePaused, setTimePaused] = useState(false)
   const [activeMissionId, setActiveMissionId] = useState<string | null>(null)
   const [missionStatus, setMissionStatus] = useState<MissionStatus>('available')
+  const [credits, setCredits] = useState<number>(() => loadCredits())
+
+  useEffect(() => {
+    saveCredits(credits)
+  }, [credits])
 
   const destinations = useMemo(() => getLocationCatalog(), [])
   const selectedLocation = useMemo(
@@ -96,17 +106,26 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
   const handleMetricsChange = useCallback(
     (newMetrics: SimulationMetrics) => {
       setMetrics(newMetrics)
-      if (missionStatus === 'active' && activeMissionId) {
-        const activeMission = getMissionById(activeMissionId)
-        if (
-          isMissionCompleted(
-            activeMission,
-            newMetrics.autonomousPhase,
-            selectedLocationId,
-          )
-        ) {
-          setMissionStatus('completed')
-        }
+
+      if (!activeMissionId) return
+      const activeMission = getMissionById(activeMissionId)
+      if (!activeMission) return
+
+      const nextStatus = getNextMissionStatus(
+        activeMission,
+        missionStatus,
+        newMetrics.autonomousPhase,
+        selectedLocationId,
+      )
+
+      if (nextStatus === missionStatus) return
+
+      setMissionStatus(nextStatus)
+
+      if (nextStatus === 'completed') {
+        setCredits((current) =>
+          awardCredits(current, activeMission.rewardCredits),
+        )
       }
     },
     [missionStatus, activeMissionId, selectedLocationId],
@@ -181,6 +200,7 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
 
         <MissionsPanel
           activeMissionId={activeMissionId}
+          credits={credits}
           missionStatus={missionStatus}
           missions={missionCatalog}
           onAcceptMission={handleAcceptMission}
