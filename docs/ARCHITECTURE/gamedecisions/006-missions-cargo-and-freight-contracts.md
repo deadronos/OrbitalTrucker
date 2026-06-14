@@ -48,21 +48,30 @@ catalog (`LOCATION_CATALOG` in `src/world/locations.ts`).
 
 ### 2. Mission state machine
 
-Each contract moves through a minimal lifecycle:
+Each contract moves through a multi-leg lifecycle that mirrors the physical
+freight run: contract accepted → travel to the origin → cargo loaded at
+the origin → travel to the destination → delivery and payout.
 
+```text
+available → active → in-transit → completed
+                       ↘ failed (reserved for future deadline / abort mechanics)
 ```
-available → active → completed
-                  ↘ failed (reserved for future deadline / abort mechanics)
-```
 
-- **available** — the contract is in the board and has not been accepted.
-- **active** — the player has accepted the contract; the cargo is aboard.
-- **completed** — the ship has arrived at the contract's `destinationId` while
-  the contract is active.
-- **failed** — reserved for future use (deadline expiry, abandon action). Not
-  used in this first pass.
+- **available** — the contract is on the board and has not been accepted.
+- **active** — the player has accepted the contract. The contract's
+  `originId` is the next navigation target; no cargo is loaded yet.
+- **in-transit** — the ship has arrived at the contract's `originId`, the
+  cargo is considered loaded, and the `destinationId` is now the active
+  navigation target.
+- **completed** — the ship has arrived at the contract's `destinationId`
+  while the contract is `in-transit`. The contract's `rewardCredits` is
+  added to the player's persistent credit balance.
+- **failed** — reserved for future use (deadline expiry, abandon action).
+  Not reachable in this iteration.
 
-Only one contract may be active at a time in v1 to keep state simple.
+Only one contract may be active at a time in v1 to keep state simple. The
+mission panel and the destination select remain interactive in all states
+so the player can reroute the ship at any time.
 
 #### Completion does not lock the board
 
@@ -91,18 +100,34 @@ The active contract row itself does not show an Accept button while it is in
 the `active` state; that row is hidden from the board while the ship is
 working on it.
 
-### 3. Arrival detection hooks into the autonomous guidance phase
+### 3. Arrival detection and status transitions
 
-The autonomous guidance stack already exposes an `autonomousPhase` value that
-reaches `'arrived'` when the ship is within the arrival threshold of its
-current planned destination. Contract completion is triggered when:
+The autonomous guidance stack already exposes an `autonomousPhase` value
+that reaches `'arrived'` whenever the ship is within the arrival
+threshold of the currently selected destination. Both mission transitions
+are driven off that same phase plus the selected destination, so we do
+not add a new proximity sensor or physics pass.
 
-- a contract is in `active` state, **and**
-- `autonomousPhase === 'arrived'`, **and**
-- `selectedLocationId === activeMission.destinationId`
+The mission's next status is computed in `src/world/missions.ts` by
+`getNextMissionStatus(mission, currentStatus, autonomousPhase,
+selectedLocationId)`. It returns:
 
-This wires the existing navigation loop into the gameplay loop without
-adding a separate proximity sensor or a new physics pass.
+- `'in-transit'` when `currentStatus === 'active'`,
+  `selectedLocationId === mission.originId`, and
+  `autonomousPhase === 'arrived'`.
+- `'completed'` when `currentStatus === 'in-transit'`,
+  `selectedLocationId === mission.destinationId`, and
+  `autonomousPhase === 'arrived'`.
+- the unchanged `currentStatus` in every other case, including the
+  `completed` and `failed` terminal states (no auto-transition out of a
+  terminal state).
+
+`App.tsx` calls this reducer from the existing `onMetricsChange`
+callback and, when the result changes, advances the mission state and
+adds the reward to the credit balance in the same effect. The reward is
+credited exactly once per contract, at the moment of the
+`in-transit → completed` transition, even if the player lingers at the
+destination.
 
 ### 4. Mission catalog is hard-coded for v1
 
@@ -164,11 +189,35 @@ contract's `destinationId` to drive completion.
 - The reward value is display-only in v1 — there is no persistent currency
   balance yet.
 
+### 7. Persistent credit balance
+
+The player's credit balance is a single non-negative integer that
+survives page reloads. It is owned by `App.tsx` and persisted to
+`localStorage` under the key `orbitaltrucker.credits` via the helpers
+in `src/world/credits.ts`.
+
+- `loadCredits()` reads the value, returns `0` for missing, non-numeric,
+  or negative entries. Used once on App mount.
+- `saveCredits(value)` writes a sanitized non-negative integer to
+  `localStorage`. Used on every change.
+- `awardCredits(balance, reward)` returns `balance + reward` and is the
+  only mutation path used by the mission loop.
+
+The current balance is shown in the freight contracts panel header
+(below the "Freight contracts" title) so the player always sees their
+haul total, and it is included in the completion banner ("Delivery
+complete" → "+4,200 cr · Balance: 6,200 cr") so the running total is
+visible at the moment of payout.
+
+The balance starts at `0` for new sessions. A future ADR may add a
+starting cash grant and per-credit spending (fuel, repairs, equipment).
+
 ## Follow-up
 
-- Add a persistent credits balance and update it on contract completion.
 - Add time limits and the `failed` state for deadline-based contracts.
-- Add multi-leg freight routes where the origin must be visited before
-  the destination unlock triggers.
+- Add a starting credit grant and an economy that spends credits on
+  fuel, repairs, and equipment.
 - Add dynamic contract generation tied to the simulation date and ship
-  position.
+  position, including payout scaling with distance and cargo class.
+- Add cargo capacity constraints so multi-leg hauls compete for hold
+  space.

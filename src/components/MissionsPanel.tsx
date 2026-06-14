@@ -6,6 +6,7 @@ type MissionsPanelProps = {
   missions: readonly FreightMission[]
   activeMissionId: string | null
   missionStatus: MissionStatus
+  credits: number
   onAcceptMission: (missionId: string) => void
 }
 
@@ -13,9 +14,11 @@ export function MissionsPanel({
   missions,
   activeMissionId,
   missionStatus,
+  credits,
   onAcceptMission,
 }: MissionsPanelProps) {
   const activeMission = missions.find((m) => m.id === activeMissionId)
+  const formattedBalance = `${credits.toLocaleString()} cr`
 
   return (
     <Card className="pointer-events-auto border-white/10 bg-slate-950/55 p-4 shadow-[0_24px_60px_rgba(0,0,0,0.3)] backdrop-blur-xl">
@@ -23,13 +26,19 @@ export function MissionsPanel({
         <h2 className="text-sm font-semibold tracking-tight text-slate-50">
           Freight contracts
         </h2>
-        <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-slate-400">
-          cargo board
+        <span
+          className="text-[10px] font-medium uppercase tracking-[0.22em] text-cyan-300/80"
+          data-testid="credit-balance"
+        >
+          Balance: {formattedBalance}
         </span>
       </div>
 
       {missionStatus === 'completed' && activeMission ? (
-        <div className="mt-3 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-3 py-3">
+        <div
+          className="mt-3 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-3 py-3"
+          data-testid="delivery-complete-banner"
+        >
           <p className="text-xs font-medium uppercase tracking-[0.22em] text-emerald-300">
             Delivery complete
           </p>
@@ -43,11 +52,17 @@ export function MissionsPanel({
           <p className="mt-1 text-xs font-medium text-emerald-300">
             +{activeMission.rewardCredits.toLocaleString()} credits
           </p>
+          <p className="mt-1 text-xs font-medium text-emerald-300/80">
+            Balance: {formattedBalance}
+          </p>
         </div>
-      ) : missionStatus === 'active' && activeMission ? (
-        <div className="mt-3 rounded-2xl border border-amber-400/25 bg-amber-400/[0.08] px-3 py-3">
-          <p className="text-xs font-medium uppercase tracking-[0.22em] text-amber-300/90">
-            Active contract
+      ) : missionStatus === 'in-transit' && activeMission ? (
+        <div
+          className="mt-3 rounded-2xl border border-sky-400/25 bg-sky-400/[0.08] px-3 py-3"
+          data-testid="cargo-loaded-banner"
+        >
+          <p className="text-xs font-medium uppercase tracking-[0.22em] text-sky-300/90">
+            Cargo loaded
           </p>
           <p className="mt-1 text-sm font-medium text-slate-50">
             {activeMission.title}
@@ -57,12 +72,37 @@ export function MissionsPanel({
           </p>
           <p className="mt-1 text-xs leading-5 text-slate-400">
             Deliver to:{' '}
-            <span className="text-amber-200/80">
+            <span className="text-sky-200/80">
               {formatDestinationLabel(activeMission.destinationId)}
             </span>
           </p>
           <p className="mt-2 text-xs leading-5 text-slate-400">
             Navigate to the destination and arrive to complete the contract.
+          </p>
+        </div>
+      ) : missionStatus === 'active' && activeMission ? (
+        <div
+          className="mt-3 rounded-2xl border border-amber-400/25 bg-amber-400/[0.08] px-3 py-3"
+          data-testid="pickup-banner"
+        >
+          <p className="text-xs font-medium uppercase tracking-[0.22em] text-amber-300/90">
+            Pickup
+          </p>
+          <p className="mt-1 text-sm font-medium text-slate-50">
+            {activeMission.title}
+          </p>
+          <p className="mt-1 text-xs leading-5 text-slate-300">
+            Cargo: {activeMission.cargoLabel}
+          </p>
+          <p className="mt-1 text-xs leading-5 text-slate-400">
+            Pickup at:{' '}
+            <span className="text-amber-200/80">
+              {formatDestinationLabel(activeMission.originId)}
+            </span>
+          </p>
+          <p className="mt-2 text-xs leading-5 text-slate-400">
+            Fly to the origin station to load the cargo, then deliver it to{' '}
+            {formatDestinationLabel(activeMission.destinationId)}.
           </p>
         </div>
       ) : null}
@@ -73,15 +113,21 @@ export function MissionsPanel({
           const isDone =
             isActive &&
             (missionStatus === 'completed' || missionStatus === 'failed')
-          // The board is locked only while a contract is in flight. Once the
-          // active contract reaches a terminal state (completed/failed) the
-          // player must be able to pick a *different* contract off the board
-          // without reloading, so any row becomes acceptable again.
+          // The board is locked only while a contract is in flight. Once
+          // the active contract reaches a terminal state (completed /
+          // failed) the player must be able to pick a *different*
+          // contract off the board without reloading, so any row becomes
+          // acceptable again. Active and in-transit rows are hidden
+          // because they are already represented by the status banner
+          // above the board.
           const isBoardLocked =
-            activeMissionId !== null && missionStatus === 'active'
+            missionStatus === 'active' || missionStatus === 'in-transit'
           const canAccept = !isBoardLocked && !isActive
+          const isHiddenRow =
+            isActive &&
+            (missionStatus === 'active' || missionStatus === 'in-transit')
 
-          if (isActive && missionStatus === 'active') return null
+          if (isHiddenRow) return null
 
           return (
             <div

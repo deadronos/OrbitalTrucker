@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { MissionsPanel } from '../../src/components/MissionsPanel'
@@ -11,6 +11,7 @@ describe('MissionsPanel', () => {
     render(
       <MissionsPanel
         activeMissionId={null}
+        credits={0}
         missionStatus="available"
         missions={missions}
         onAcceptMission={vi.fn()}
@@ -30,6 +31,7 @@ describe('MissionsPanel', () => {
     render(
       <MissionsPanel
         activeMissionId={null}
+        credits={0}
         missionStatus="available"
         missions={missions}
         onAcceptMission={onAcceptMission}
@@ -45,13 +47,14 @@ describe('MissionsPanel', () => {
     render(
       <MissionsPanel
         activeMissionId="mars-supply-run"
+        credits={0}
         missionStatus="active"
         missions={missions}
         onAcceptMission={vi.fn()}
       />,
     )
 
-    expect(screen.getByText('Active contract')).toBeInTheDocument()
+    expect(screen.getByText('Pickup')).toBeInTheDocument()
     // Active mission row is hidden entirely; no accept button for it
     expect(screen.queryByTestId('accept-mission-mars-supply-run')).toBeNull()
     // Only one contract active at a time: other missions visible but not acceptable
@@ -65,6 +68,7 @@ describe('MissionsPanel', () => {
     render(
       <MissionsPanel
         activeMissionId="mars-supply-run"
+        credits={4200}
         missionStatus="completed"
         missions={missions}
         onAcceptMission={vi.fn()}
@@ -82,6 +86,7 @@ describe('MissionsPanel', () => {
     render(
       <MissionsPanel
         activeMissionId="mars-supply-run"
+        credits={4200}
         missionStatus="completed"
         missions={missions}
         onAcceptMission={vi.fn()}
@@ -108,6 +113,7 @@ describe('MissionsPanel', () => {
     render(
       <MissionsPanel
         activeMissionId="mars-supply-run"
+        credits={4200}
         missionStatus="completed"
         missions={missions}
         onAcceptMission={onAcceptMission}
@@ -126,6 +132,7 @@ describe('MissionsPanel', () => {
     const { rerender } = render(
       <MissionsPanel
         activeMissionId="mars-supply-run"
+        credits={0}
         missionStatus="active"
         missions={missions}
         onAcceptMission={vi.fn()}
@@ -143,6 +150,7 @@ describe('MissionsPanel', () => {
     rerender(
       <MissionsPanel
         activeMissionId="mars-supply-run"
+        credits={0}
         missionStatus="failed"
         missions={missions}
         onAcceptMission={vi.fn()}
@@ -155,5 +163,94 @@ describe('MissionsPanel', () => {
     expect(
       screen.getByTestId('accept-mission-lunar-logistics-delivery'),
     ).toBeInTheDocument()
+  })
+})
+
+describe('pickup and credit balance', () => {
+  it('always shows the current credit balance in the panel header', () => {
+    render(
+      <MissionsPanel
+        activeMissionId={null}
+        credits={6200}
+        missionStatus="available"
+        missions={missions}
+        onAcceptMission={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('Balance: 6,200 cr')).toBeInTheDocument()
+  })
+
+  it('shows the pickup location while the active mission is en route to origin', () => {
+    render(
+      <MissionsPanel
+        activeMissionId="mars-supply-run"
+        credits={0}
+        missionStatus="active"
+        missions={missions}
+        onAcceptMission={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('Pickup')).toBeInTheDocument()
+    expect(screen.getByText('Earth Orbit Freight Ring')).toBeInTheDocument()
+    expect(screen.queryByText('Cargo loaded')).toBeNull()
+  })
+
+  it('shows the cargo-loaded banner while in-transit to the destination', () => {
+    render(
+      <MissionsPanel
+        activeMissionId="mars-supply-run"
+        credits={0}
+        missionStatus="in-transit"
+        missions={missions}
+        onAcceptMission={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('Cargo loaded')).toBeInTheDocument()
+    expect(screen.getByText('Mars High Port')).toBeInTheDocument()
+    expect(screen.queryByText('Pickup')).toBeNull()
+  })
+
+  it('shows the running balance in the completion banner', () => {
+    render(
+      <MissionsPanel
+        activeMissionId="mars-supply-run"
+        credits={8400}
+        missionStatus="completed"
+        missions={missions}
+        onAcceptMission={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('+4,200 credits')).toBeInTheDocument()
+    // Balance is shown both in the panel header and the completion
+    // banner, so assert via the banner's test id.
+    expect(
+      within(screen.getByTestId('delivery-complete-banner')).getByText(
+        'Balance: 8,400 cr',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('hides the active mission row when it is in-transit', () => {
+    render(
+      <MissionsPanel
+        activeMissionId="mars-supply-run"
+        credits={0}
+        missionStatus="in-transit"
+        missions={missions}
+        onAcceptMission={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByTestId('accept-mission-mars-supply-run')).toBeNull()
+    expect(
+      screen.queryByTestId('accept-mission-jovian-outpost-resupply'),
+    ).toBeNull()
+    expect(
+      screen.queryByTestId('accept-mission-lunar-logistics-delivery'),
+    ).toBeNull()
   })
 })
