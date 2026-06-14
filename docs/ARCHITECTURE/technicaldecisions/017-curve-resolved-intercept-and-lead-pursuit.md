@@ -62,9 +62,10 @@ The status enum grows from three to five values:
 - `future-intercept` — solver converged on a curve-resolved intercept
   within the lookahead horizon
 - `intercept-overrun` — solver converged but the next iteration would
-  exceed the lookahead horizon, or the target's apparent speed is
-  greater than the ship's planning speed; the planner still returns
-  the last converged `predictedPosition` and `requiredArrivalVelocity`
+  exceed the lookahead horizon (commonly because the target's
+  apparent speed outpaces the ship's planning speed, so the intercept
+  time keeps growing); the planner still returns the last converged
+  `predictedPosition` and `requiredArrivalVelocity`
 - `lead-chase` — solver did not converge within the iteration limit
   and there is no usable last iteration; the planner falls back to
   `aimPosition = currentPosition + requiredArrivalVelocity * eta`
