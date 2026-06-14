@@ -101,6 +101,7 @@ function createPlaceholderPlannerResult(): TransferPlannerResult {
       aimPosition: new Vector3(0, 0, 0),
       direction: new Vector3(1, 0, 0),
       bearingAngleDeg: 0,
+      requiredArrivalVelocity: new Vector3(0, 0, 0),
     },
     travel: {
       currentDistanceAu: 0,

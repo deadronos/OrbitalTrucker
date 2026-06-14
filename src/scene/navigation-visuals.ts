@@ -11,6 +11,18 @@ export type NavigationVisualState = {
   showInterceptMarker: boolean
 }
 
+/**
+ * The cyan intercept ring and the drift tether should only render when
+ * the planner has produced a real future-intercept solution. Chase
+ * states (intercept-overrun, lead-chase) hide the marker so the
+ * player can see the planner has fallen back to live lead-pursuit.
+ */
+export function shouldShowInterceptMarker(
+  plannerResult: TransferPlannerResult,
+): boolean {
+  return plannerResult.status === 'future-intercept'
+}
+
 export function buildNavigationVisualState(
   plannerResult: TransferPlannerResult,
 ): NavigationVisualState {
@@ -18,7 +30,7 @@ export function buildNavigationVisualState(
   const aimPosition = plannerResult.guidance.aimPosition.clone()
   const predictedPosition = plannerResult.destination.predictedPosition.clone()
   const showInterceptMarker =
-    plannerResult.status === 'future-intercept' &&
+    shouldShowInterceptMarker(plannerResult) &&
     destinationPosition.distanceTo(predictedPosition) >
       INTERCEPT_VISUAL_EPSILON_AU
 

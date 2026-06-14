@@ -157,6 +157,10 @@ function describePlannerState(
       return "Route overlay is steering toward the destination's current resolved position."
     case 'future-intercept':
       return 'The cyan ring marks the destination now, and the amber marker shows the predicted intercept fix the ship is leading toward.'
+    case 'intercept-overrun':
+      return 'The target outruns the ship; the planner is leading the live target instead of a static fix.'
+    case 'lead-chase':
+      return 'The planner could not converge; the ship is leading the target using its current velocity.'
     case 'no-solution':
       return 'The planner has fallen back to the current destination fix until it can recover a better intercept solution.'
   }
