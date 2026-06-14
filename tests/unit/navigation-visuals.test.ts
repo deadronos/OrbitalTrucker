@@ -1,7 +1,10 @@
 import { Vector3 } from 'three'
 import { describe, expect, it } from 'vitest'
 
-import { buildNavigationVisualState } from '../../src/scene/navigation-visuals'
+import {
+  buildNavigationVisualState,
+  shouldShowInterceptMarker,
+} from '../../src/scene/navigation-visuals'
 import type { TransferPlannerResult } from '../../src/simulation/transfer-planner'
 
 describe('buildNavigationVisualState', () => {
@@ -32,6 +35,26 @@ describe('buildNavigationVisualState', () => {
   })
 })
 
+describe('shouldShowInterceptMarker', () => {
+  it.each([
+    ['current-position', false],
+    ['future-intercept', true],
+    ['intercept-overrun', false],
+    ['lead-chase', false],
+    ['no-solution', false],
+  ] as const)('returns %s for status %s', (status, expected) => {
+    expect(
+      shouldShowInterceptMarker(
+        createPlan({
+          currentPosition: new Vector3(0, 0, 0),
+          predictedPosition: new Vector3(1, 0, 0),
+          status,
+        }),
+      ),
+    ).toBe(expected)
+  })
+})
+
 function createPlan({
   currentPosition,
   predictedPosition,
@@ -57,6 +80,7 @@ function createPlan({
       aimPosition: predictedPosition.clone(),
       direction: new Vector3(1, 0, 0),
       bearingAngleDeg: 0,
+      requiredArrivalVelocity: new Vector3(0, 0, 0),
     },
     travel: {
       currentDistanceAu: 1,
