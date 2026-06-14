@@ -1,4 +1,9 @@
-export type MissionStatus = 'available' | 'active' | 'completed' | 'failed'
+export type MissionStatus =
+  | 'available'
+  | 'active'
+  | 'in-transit'
+  | 'completed'
+  | 'failed'
 
 export type FreightMission = {
   id: string
@@ -55,9 +60,33 @@ export function getMissionCatalog(): readonly FreightMission[] {
   return MISSION_CATALOG
 }
 
+export function getMissionAtOrigin(
+  mission: FreightMission | undefined,
+  selectedLocationId: string,
+): boolean {
+  return Boolean(mission) && mission!.originId === selectedLocationId
+}
+
+export function getMissionAtDestination(
+  mission: FreightMission | undefined,
+  selectedLocationId: string,
+): boolean {
+  return Boolean(mission) && mission!.destinationId === selectedLocationId
+}
+
+export function isMissionCargoLoaded(
+  mission: FreightMission | undefined,
+  status: MissionStatus,
+): boolean {
+  if (!mission) return false
+  return status === 'in-transit' || status === 'completed'
+}
+
 /**
- * Returns true when an active mission should be marked completed: the ship
- * has arrived (autonomousPhase === 'arrived') at the mission's destination.
+ * Returns true when an in-transit mission has been delivered: the ship
+ * has arrived (autonomousPhase === 'arrived') at the mission's
+ * destination. Used by the existing completion banner test and by the
+ * App-level reducer (it is the `in-transit → completed` transition).
  */
 export function isMissionCompleted(
   mission: FreightMission | undefined,
@@ -69,4 +98,50 @@ export function isMissionCompleted(
     autonomousPhase === 'arrived' &&
     selectedLocationId === mission.destinationId
   )
+}
+
+/**
+ * Reducer for the freight mission lifecycle:
+ *   available → active → in-transit → completed
+ *                          ↘ failed (reserved)
+ *
+ * The transition rules are:
+ * - `active` advances to `in-transit` when the ship is `arrived` at
+ *   `mission.originId`.
+ * - `in-transit` advances to `completed` when the ship is `arrived` at
+ *   `mission.destinationId`.
+ * - `completed` and `failed` are terminal: this reducer never auto-
+ *   transitions out of them, which keeps the freight board interactive
+ *   after delivery.
+ * - In every other case the current status is returned unchanged.
+ */
+export function getNextMissionStatus(
+  mission: FreightMission | undefined,
+  currentStatus: MissionStatus,
+  autonomousPhase: string,
+  selectedLocationId: string,
+): MissionStatus {
+  if (!mission) return currentStatus
+
+  if (currentStatus === 'active') {
+    if (
+      autonomousPhase === 'arrived' &&
+      selectedLocationId === mission.originId
+    ) {
+      return 'in-transit'
+    }
+    return 'active'
+  }
+
+  if (currentStatus === 'in-transit') {
+    if (
+      autonomousPhase === 'arrived' &&
+      selectedLocationId === mission.destinationId
+    ) {
+      return 'completed'
+    }
+    return 'in-transit'
+  }
+
+  return currentStatus
 }
