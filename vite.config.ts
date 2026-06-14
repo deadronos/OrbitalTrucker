@@ -3,6 +3,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  base: '/OrbitalTrucker/',
   plugins: [react(), tailwindcss()],
   build: {
     // Suppress the default 500 kB warning; the 3D-engine chunk is intentionally
