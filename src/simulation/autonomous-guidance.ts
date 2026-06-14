@@ -12,6 +12,7 @@ import type {
   ShipCapabilities,
   TransferPlannerResult,
 } from './transfer-planner'
+import { DEFAULT_SHIP_CAPABILITIES } from './transfer-planner'
 
 export type AutonomousGuidancePhase =
   | 'acquiring'
@@ -43,7 +44,6 @@ const BRAKE_EXIT_RATIO = 0.45
 const STEERING_DEADZONE_RAD = 0.015
 const STEERING_FULL_SCALE_RAD = 0.35
 const STEERING_DAMPING_SECONDS = 1.2
-const LEAD_PURSUIT_FALLBACK_AU = 0.05
 
 export function computeAutonomousGuidance(
   shipState: ShipState,
@@ -52,7 +52,7 @@ export function computeAutonomousGuidance(
 ): AutonomousGuidanceResult {
   const leadWeight = computeLeadWeight(
     plannerResult,
-    plannerCapabilities(plannerResult),
+    null,
   )
   const liveLead = computeLiveLeadPosition(plannerResult, leadWeight)
   const blendedAim = plannerResult.guidance.aimPosition
@@ -262,19 +262,6 @@ function dampedAxis(value: number): number {
   return Math.max(-0.75, Math.min(0.75, value))
 }
 
-function plannerCapabilities(
-  _plannerResult: TransferPlannerResult,
-): ShipCapabilities | null {
-  // The planner capability is not currently threaded through the
-  // planner result. We use the default lead-pursuit full-scale for
-  // guidance consumers that have not opted in via a capability. This
-  // helper exists so a future change can thread capabilities through
-  // the orchestrator without touching the call sites.
-  return {
-    leadPursuitFullScaleAu: LEAD_PURSUIT_FALLBACK_AU,
-  } as ShipCapabilities
-}
-
 function computeLeadWeight(
   plannerResult: TransferPlannerResult,
   capabilities: ShipCapabilities | null,
@@ -287,7 +274,8 @@ function computeLeadWeight(
   }
 
   const fullScale =
-    capabilities?.leadPursuitFullScaleAu ?? LEAD_PURSUIT_FALLBACK_AU
+    capabilities?.leadPursuitFullScaleAu ??
+    DEFAULT_SHIP_CAPABILITIES.leadPursuitFullScaleAu
   if (fullScale <= 0) {
     return 0
   }

@@ -138,6 +138,7 @@ export function planTransfer({
 
     if (seedSeconds === null) {
       // No real constant-speed root exists. Treat as overrun: still
+      // No real constant-speed root exists. Treat as lead-chase: still
       // produce a lead-chase fallback so the ship has a heading.
       const naiveEtaSeconds = shipPosition.distanceTo(currentPosition) /
         planningSpeedAuPerSec
@@ -176,16 +177,13 @@ export function planTransfer({
           planningSpeedAuPerSec
 
         solutionErrorSeconds = Math.abs(nextSeconds - candidateSeconds)
-        lastUsableCandidateSeconds = candidateSeconds
-        lastUsablePosition = candidatePosition.clone()
-        lastUsableDate = candidateDate
-
         if (candidateSeconds > maxLookaheadSeconds) {
           if (lastUsablePosition && lastUsableCandidateSeconds !== null &&
               lastUsableCandidateSeconds <= maxLookaheadSeconds) {
             predictedPosition = lastUsablePosition
             predictedDate = lastUsableDate
             interceptTimeSeconds = lastUsableCandidateSeconds
+            aimPosition = lastUsablePosition.clone()
             status = 'intercept-overrun'
           } else {
             status = 'no-solution'
@@ -206,6 +204,9 @@ export function planTransfer({
           break
         }
 
+        lastUsableCandidateSeconds = candidateSeconds
+        lastUsablePosition = candidatePosition.clone()
+        lastUsableDate = candidateDate
         candidateSeconds = nextSeconds
       }
 
@@ -214,6 +215,7 @@ export function planTransfer({
           predictedPosition = lastUsablePosition
           predictedDate = lastUsableDate
           interceptTimeSeconds = lastUsableCandidateSeconds
+          aimPosition = lastUsablePosition.clone()
           status = 'intercept-overrun'
         } else {
           status = 'no-solution'
@@ -284,6 +286,7 @@ function estimateTargetVelocity(
   )
 
   return sampled.sub(current).divideScalar(sampleSeconds)
+  return sampled.clone().sub(current).divideScalar(sampleSeconds)
 }
 
 function computeArrivalVelocity(
@@ -297,6 +300,7 @@ function computeArrivalVelocity(
     addSeconds(date, 1),
   )
   return next.sub(current)
+  return next.clone().sub(current)
 }
 
 export function solveConstantSpeedInterceptTime(

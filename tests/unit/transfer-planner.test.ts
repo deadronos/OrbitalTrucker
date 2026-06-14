@@ -272,6 +272,76 @@ describe('planTransfer', () => {
     )
   })
 
+  it('reports intercept-overrun when the candidate crosses the horizon with a prior-iteration candidate still within bounds', () => {
+    // Regression test for the horizon-exceeded boundary path. Set a
+    // tight lookahead and a circular orbit such that the quadratic
+    // seed lands just inside the horizon, but the curve-resolved next
+    // candidate pushes past it because the target curves away from
+    // the constant-velocity tangent.
+    //
+    // Ship inside the orbit: the constant-velocity seed extrapolates
+    // along the tangent while the actual curve bends outward, making
+    // the curve-resolved position further away and the next candidate
+    // exceed the horizon.
+    const maxLookaheadSeconds = 300
+    const resolver = createCircularOrbitResolver('mars', 1.52, 0.05, 0)
+    const plan = planTransfer({
+      date: BASE_DATE,
+      shipPosition: new Vector3(1.0, 0, 0),
+      shipVelocity: new Vector3(0, 0, 0),
+      shipForward: new Vector3(1, 0, 0),
+      destinationId: 'mars',
+      resolveDestinationPosition: resolver,
+      shipCapabilities: {
+        assumedCruiseSpeedAuPerSec: 0.003,
+        targetVelocitySampleSeconds: 1,
+        maxInterceptLookaheadDays: maxLookaheadSeconds / 86_400,
+        maxInterceptIterations: 8,
+        interceptConvergenceSeconds: 1e-6,
+      },
+    })
+
+    expect(plan.status).toBe('intercept-overrun')
+    expect(plan.destination.predictedDate).not.toBeNull()
+    expect(plan.travel.interceptTimeSeconds).not.toBeNull()
+    if (plan.travel.interceptTimeSeconds !== null) {
+      expect(plan.travel.interceptTimeSeconds).toBeLessThanOrEqual(
+        maxLookaheadSeconds,
+      )
+    }
+  })
+
+  it('reports lead-chase when the seed exceeds the lookahead horizon', () => {
+    // When the quadratic seed is already beyond the horizon,
+    // solveConstantSpeedInterceptTime rejects it (returns null).
+    // The planner falls back to `lead-chase` with a naive lead
+    // position. This verifies that the fallback path works and
+    // that solveConstantSpeedInterceptTime's horizon gate is
+    // consistent.
+    const plan = planTransfer({
+      date: BASE_DATE,
+      shipPosition: new Vector3(0, 0, 0),
+      shipVelocity: new Vector3(0.01, 0, 0),
+      shipForward: new Vector3(1, 0, 0),
+      destinationId: 'runner',
+      resolveDestinationPosition: createLinearResolver({
+        runner: {
+          start: new Vector3(100, 0, 0), // 100 AU away
+          velocity: new Vector3(0, 0, 0),
+        },
+      }),
+      shipCapabilities: {
+        assumedCruiseSpeedAuPerSec: 0.01,
+        targetVelocitySampleSeconds: 1,
+        maxInterceptLookaheadDays: 0.001, // ~86.4 s
+        maxInterceptIterations: 4,
+        interceptConvergenceSeconds: 1e-6,
+      },
+    })
+
+    expect(plan.status).toBe('lead-chase')
+  })
+
   it('exposes the five-state status enum to consumers', () => {
     // Compile-time check: this assignment must compile if and only if
     // every member of the enum is present in TransferPlannerStatus.
