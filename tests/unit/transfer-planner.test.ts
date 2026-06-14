@@ -94,10 +94,15 @@ describe('planTransfer', () => {
       },
     })
 
-    expect(plan.status).toBe('no-solution')
-    expect(plan.guidance.aimPosition.x).toBeCloseTo(10)
-    expect(plan.travel.interceptTimeSeconds).toBeNull()
-    expect(plan.travel.etaDays).toBeCloseTo(10 / 86_400)
+    // Under the 5-state model (issue #52), an outrunnable target
+    // produces `lead-chase`: the planner returns a lead-pursuit aim
+    // computed from the current position and the target's estimated
+    // velocity, rather than `no-solution` which is reserved for cases
+    // where no aim can be produced at all.
+    expect(plan.status).toBe('lead-chase')
+    expect(plan.guidance.aimPosition.x).toBeGreaterThan(10)
+    expect(plan.travel.interceptTimeSeconds).not.toBeNull()
+    expect(plan.travel.etaDays).not.toBeNull()
   })
 
   it('retargets to a different intercept solution when the destination changes', () => {
