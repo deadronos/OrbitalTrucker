@@ -5,6 +5,8 @@ import { planRoute } from './trajectory'
 export type TransferPlannerStatus =
   | 'current-position'
   | 'future-intercept'
+  | 'intercept-overrun'
+  | 'lead-chase'
   | 'no-solution'
 
 export type ShipCapabilities = {
@@ -23,6 +25,11 @@ export type ShipCapabilities = {
   maxInterceptIterations: number
   /** Acceptable change between successive intercept times. */
   interceptConvergenceSeconds: number
+  /**
+   * Distance (AU) at and above which lead-pursuit is fully active in
+   * the guidance layer. Below this, the planner's static aim dominates.
+   */
+  leadPursuitFullScaleAu: number
 }
 
 export type TransferPlannerInputs = {
@@ -48,6 +55,13 @@ export type TransferPlannerResult = {
     aimPosition: Vector3
     direction: Vector3
     bearingAngleDeg: number
+    /**
+     * The target's instantaneous heliocentric velocity at the predicted
+     * intercept time (or at `date` when the planner is in
+     * `current-position` mode). Computed as a 1-second forward
+     * difference on the curve-resolver.
+     */
+    requiredArrivalVelocity: Vector3
   }
   travel: {
     currentDistanceAu: number
@@ -73,6 +87,7 @@ export const DEFAULT_SHIP_CAPABILITIES: ShipCapabilities = {
   maxInterceptLookaheadDays: 365 * 5,
   maxInterceptIterations: 5,
   interceptConvergenceSeconds: 1,
+  leadPursuitFullScaleAu: 0.05,
 }
 
 export function planTransfer({
