@@ -149,3 +149,21 @@ architecture before autonomous guidance lands.
 - Let ship-computer quality and engine loadouts tune planning assumptions.
 - Replace sampled intercept prediction with higher-fidelity transfer logic once
   the flight model demands it.
+
+## Status note (2026-06-14)
+
+The iterative re-solve in §2 and the three-state status in §3 have
+been refined in ADR 017, which addresses issue #52. ADR 017
+introduces:
+
+- a curve-resolved iteration that no longer depends on the 21 600 s
+  velocity sample
+- a `guidance.requiredArrivalVelocity` field
+- a five-state status enum (`current-position`, `future-intercept`,
+  `intercept-overrun`, `lead-chase`, `no-solution`)
+- a distance-based lead-pursuit blend in the guidance layer
+
+This ADR remains the architectural source of truth for *why* the
+planner is a separate module and *what* shape its result takes;
+ADR 017 is the source of truth for the curve-resolved iteration and
+the five-state status.

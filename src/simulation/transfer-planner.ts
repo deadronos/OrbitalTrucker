@@ -5,6 +5,8 @@ import { planRoute } from './trajectory'
 export type TransferPlannerStatus =
   | 'current-position'
   | 'future-intercept'
+  | 'intercept-overrun'
+  | 'lead-chase'
   | 'no-solution'
 
 export type ShipCapabilities = {
@@ -23,6 +25,11 @@ export type ShipCapabilities = {
   maxInterceptIterations: number
   /** Acceptable change between successive intercept times. */
   interceptConvergenceSeconds: number
+  /**
+   * Distance (AU) at and above which lead-pursuit is fully active in
+   * the guidance layer. Below this, the planner's static aim dominates.
+   */
+  leadPursuitFullScaleAu: number
 }
 
 export type TransferPlannerInputs = {
@@ -48,6 +55,13 @@ export type TransferPlannerResult = {
     aimPosition: Vector3
     direction: Vector3
     bearingAngleDeg: number
+    /**
+     * The target's instantaneous heliocentric velocity at the predicted
+     * intercept time (or at `date` when the planner is in
+     * `current-position` mode). Computed as a 1-second forward
+     * difference on the curve-resolver.
+     */
+    requiredArrivalVelocity: Vector3
   }
   travel: {
     currentDistanceAu: number
@@ -73,6 +87,7 @@ export const DEFAULT_SHIP_CAPABILITIES: ShipCapabilities = {
   maxInterceptLookaheadDays: 365 * 5,
   maxInterceptIterations: 5,
   interceptConvergenceSeconds: 1,
+  leadPursuitFullScaleAu: 0.05,
 }
 
 export function planTransfer({
@@ -110,7 +125,10 @@ export function planTransfer({
   let solutionErrorSeconds: number | null = null
 
   if (planningSpeedAuPerSec >= capabilities.minimumPlanningSpeedAuPerSec) {
-    const initialInterceptSeconds = solveConstantSpeedInterceptTime(
+    // Seed the iteration with the closed-form quadratic solution under
+    // the constant-velocity assumption. The curve-resolved iteration
+    // then refines against the actual curve, correcting for curvature.
+    const seedSeconds = solveConstantSpeedInterceptTime(
       shipPosition,
       currentPosition,
       estimatedVelocityAuPerSec,
@@ -118,10 +136,29 @@ export function planTransfer({
       maxLookaheadSeconds,
     )
 
-    if (initialInterceptSeconds === null) {
-      status = 'no-solution'
+    if (seedSeconds === null) {
+      // No real constant-speed root exists. Treat as lead-chase: still
+      // produce a lead-chase fallback so the ship has a heading.
+      const naiveEtaSeconds = shipPosition.distanceTo(currentPosition) /
+        planningSpeedAuPerSec
+      const leadPosition = currentPosition.clone().addScaledVector(
+        estimatedVelocityAuPerSec,
+        naiveEtaSeconds,
+      )
+      predictedPosition = leadPosition
+      predictedDate = addSeconds(date, naiveEtaSeconds)
+      interceptTimeSeconds = naiveEtaSeconds
+      aimPosition = leadPosition
+      status = 'lead-chase'
     } else {
-      interceptTimeSeconds = initialInterceptSeconds
+      let candidateSeconds = seedSeconds
+      let converged = false
+      let lastUsableCandidateSeconds: number | null = candidateSeconds
+      let lastUsablePosition: Vector3 | null = resolveDestinationPosition(
+        destinationId,
+        addSeconds(date, candidateSeconds),
+      )
+      let lastUsableDate: Date | null = addSeconds(date, candidateSeconds)
 
       for (
         let iteration = 1;
@@ -130,53 +167,57 @@ export function planTransfer({
       ) {
         iterations = iteration
 
-        const candidateDate = addSeconds(date, interceptTimeSeconds)
+        const candidateDate = addSeconds(date, candidateSeconds)
         const candidatePosition = resolveDestinationPosition(
           destinationId,
           candidateDate,
         )
-        const nextInterceptSeconds =
-          shipPosition.distanceTo(candidatePosition) / planningSpeedAuPerSec
+        const nextSeconds = shipPosition.distanceTo(candidatePosition) /
+          planningSpeedAuPerSec
 
-        solutionErrorSeconds = Math.abs(
-          nextInterceptSeconds - interceptTimeSeconds,
-        )
-
-        predictedPosition = candidatePosition.clone()
-        predictedDate = candidateDate
-        interceptTimeSeconds = nextInterceptSeconds
-
-        if (interceptTimeSeconds > maxLookaheadSeconds) {
-          status = 'no-solution'
-          predictedPosition = currentPosition.clone()
-          predictedDate = null
-          interceptTimeSeconds = null
-          solutionErrorSeconds = null
+        solutionErrorSeconds = Math.abs(nextSeconds - candidateSeconds)
+        if (candidateSeconds > maxLookaheadSeconds) {
+          if (lastUsablePosition && lastUsableCandidateSeconds !== null &&
+              lastUsableCandidateSeconds <= maxLookaheadSeconds) {
+            predictedPosition = lastUsablePosition
+            predictedDate = lastUsableDate
+            interceptTimeSeconds = lastUsableCandidateSeconds
+            aimPosition = lastUsablePosition.clone()
+            status = 'intercept-overrun'
+          } else {
+            status = 'no-solution'
+          }
           break
         }
 
         if (solutionErrorSeconds <= capabilities.interceptConvergenceSeconds) {
+          predictedPosition = candidatePosition.clone()
+          predictedDate = candidateDate
+          interceptTimeSeconds = candidateSeconds
           aimPosition = candidatePosition.clone()
+          converged = true
           status =
             currentPosition.distanceTo(candidatePosition) > MIN_TARGET_MOTION_AU
               ? 'future-intercept'
               : 'current-position'
           break
         }
+
+        lastUsableCandidateSeconds = candidateSeconds
+        lastUsablePosition = candidatePosition.clone()
+        lastUsableDate = candidateDate
+        candidateSeconds = nextSeconds
       }
 
-      if (iterations === capabilities.maxInterceptIterations) {
-        const converged =
-          solutionErrorSeconds !== null &&
-          solutionErrorSeconds <= capabilities.interceptConvergenceSeconds
-
-        if (!converged) {
+      if (!converged && iterations === capabilities.maxInterceptIterations) {
+        if (lastUsablePosition && lastUsableCandidateSeconds !== null) {
+          predictedPosition = lastUsablePosition
+          predictedDate = lastUsableDate
+          interceptTimeSeconds = lastUsableCandidateSeconds
+          aimPosition = lastUsablePosition.clone()
+          status = 'intercept-overrun'
+        } else {
           status = 'no-solution'
-          aimPosition = currentPosition.clone()
-          predictedPosition = currentPosition.clone()
-          predictedDate = null
-          interceptTimeSeconds = null
-          solutionErrorSeconds = null
         }
       }
     }
@@ -206,6 +247,11 @@ export function planTransfer({
       aimPosition: aimPosition.clone(),
       direction: route.directionToTarget,
       bearingAngleDeg: route.bearingAngleDeg,
+      requiredArrivalVelocity: computeArrivalVelocity(
+        destinationId,
+        predictedDate ?? date,
+        resolveDestinationPosition,
+      ),
     },
     travel: {
       currentDistanceAu,
@@ -239,9 +285,24 @@ function estimateTargetVelocity(
   )
 
   return sampled.sub(current).divideScalar(sampleSeconds)
+  return sampled.clone().sub(current).divideScalar(sampleSeconds)
 }
 
-function solveConstantSpeedInterceptTime(
+function computeArrivalVelocity(
+  destinationId: string,
+  date: Date,
+  resolveDestinationPosition: (destinationId: string, date: Date) => Vector3,
+): Vector3 {
+  const current = resolveDestinationPosition(destinationId, date)
+  const next = resolveDestinationPosition(
+    destinationId,
+    addSeconds(date, 1),
+  )
+  return next.sub(current)
+  return next.clone().sub(current)
+}
+
+export function solveConstantSpeedInterceptTime(
   shipPosition: Vector3,
   targetPosition: Vector3,
   targetVelocity: Vector3,

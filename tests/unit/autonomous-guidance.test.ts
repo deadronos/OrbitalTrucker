@@ -42,6 +42,7 @@ describe('computeAutonomousGuidance', () => {
 
   it('treats pitch-aligned elevated targets as cruise-ready', () => {
     const state = createInitialShipState()
+    state.position.set(0, 0, 0)
     state.yaw = 0
     state.pitch = Math.PI / 4
 
@@ -58,6 +59,7 @@ describe('computeAutonomousGuidance', () => {
 
   it('tapers cruise thrust as stopping distance approaches remaining range', () => {
     const state = createInitialShipState()
+    state.position.set(0, 0, 0)
     state.yaw = 0
     state.pitch = 0
     state.velocity.set(Math.sqrt(2 * 0.000016 * 0.6), 0, 0)
@@ -106,6 +108,7 @@ describe('computeAutonomousGuidance', () => {
 
   it('changes steering command when the destination changes', () => {
     const state = createInitialShipState()
+    state.position.set(0, 0, 0)
     state.yaw = 0
     state.pitch = 0
 
@@ -120,6 +123,108 @@ describe('computeAutonomousGuidance', () => {
 
     expect(initialGuidance.controls.yaw).toBe(0)
     expect(retargetedGuidance.controls.yaw).toBeGreaterThan(0)
+  })
+})
+
+describe('lead-pursuit blend', () => {
+  function makeLeadPursuitPlan(overrides: {
+    status: 'current-position' | 'future-intercept' | 'intercept-overrun' | 'lead-chase' | 'no-solution'
+    targetMotion: number
+    requiredArrivalVelocity: Vector3
+    interceptTimeSeconds: number | null
+    aimPosition: Vector3
+    currentPosition: Vector3
+  }): TransferPlannerResult {
+    return {
+      destinationId: 'target',
+      status: overrides.status,
+      destination: {
+        currentPosition: overrides.currentPosition,
+        predictedPosition: overrides.aimPosition,
+        predictedDate: new Date('2026-04-01T00:00:00.000Z'),
+        estimatedVelocityAuPerSec: new Vector3(0, 0, 0),
+      },
+      guidance: {
+        aimPosition: overrides.aimPosition,
+        direction: new Vector3(1, 0, 0),
+        bearingAngleDeg: 0,
+        requiredArrivalVelocity: overrides.requiredArrivalVelocity,
+      },
+      travel: {
+        currentDistanceAu: 1,
+        plannedDistanceAu: 1.5,
+        etaDays: 0.01,
+        interceptTimeSeconds: overrides.interceptTimeSeconds,
+        targetMotionDuringInterceptAu: overrides.targetMotion,
+        planningSpeedAuPerSec: 1,
+      },
+      solver: { iterations: 1, solutionErrorSeconds: null },
+    }
+  }
+
+  it('uses the planner aim when target motion is below the lead-pursuit full-scale', () => {
+    const state = createInitialShipState()
+    state.position.set(0, 0, 0)
+    const plan = makeLeadPursuitPlan({
+      status: 'future-intercept',
+      targetMotion: 0.001, // < 0.05 threshold
+      requiredArrivalVelocity: new Vector3(0, 0, 0),
+      interceptTimeSeconds: 60,
+      aimPosition: new Vector3(1.5, 0, 0),
+      currentPosition: new Vector3(1, 0, 0),
+    })
+    const result = computeAutonomousGuidance(state, plan)
+    // Static aim at +X dominates; desiredDirection should be near +X.
+    expect(result.desiredDirection.x).toBeGreaterThan(0.99)
+    expect(result.desiredDirection.y).toBeLessThan(0.05)
+  })
+
+  it('blends toward the live lead when target motion exceeds the threshold', () => {
+    const state = createInitialShipState()
+    state.position.set(0, 0, 0)
+    const plan = makeLeadPursuitPlan({
+      status: 'future-intercept',
+      targetMotion: 1, // >> 0.05 threshold
+      requiredArrivalVelocity: new Vector3(0, 1, 0),
+      interceptTimeSeconds: 60,
+      aimPosition: new Vector3(1, 0, 0), // static aim at +X
+      currentPosition: new Vector3(0, 0, 0), // live lead = (0, 60, 0)
+    })
+    const result = computeAutonomousGuidance(state, plan)
+    // Live lead dominates; desiredDirection should be near +Y.
+    expect(result.desiredDirection.y).toBeGreaterThan(0.5)
+    expect(result.desiredDirection.x).toBeLessThan(0.5)
+  })
+
+  it('forces leadWeight=1 for intercept-overrun status', () => {
+    const state = createInitialShipState()
+    state.position.set(0, 0, 0)
+    const plan = makeLeadPursuitPlan({
+      status: 'intercept-overrun',
+      targetMotion: 0.0001, // below threshold
+      requiredArrivalVelocity: new Vector3(0, 1, 0),
+      interceptTimeSeconds: 60,
+      aimPosition: new Vector3(1, 0, 0), // static aim at +X
+      currentPosition: new Vector3(0, 0, 0), // live lead = (0, 60, 0)
+    })
+    const result = computeAutonomousGuidance(state, plan)
+    // Status forces live lead to dominate.
+    expect(result.desiredDirection.y).toBeGreaterThan(0.5)
+  })
+
+  it('forces leadWeight=1 for lead-chase status', () => {
+    const state = createInitialShipState()
+    state.position.set(0, 0, 0)
+    const plan = makeLeadPursuitPlan({
+      status: 'lead-chase',
+      targetMotion: 0.0001, // below threshold
+      requiredArrivalVelocity: new Vector3(0, 1, 0),
+      interceptTimeSeconds: 60,
+      aimPosition: new Vector3(1, 0, 0), // static aim at +X
+      currentPosition: new Vector3(0, 0, 0), // live lead = (0, 60, 0)
+    })
+    const result = computeAutonomousGuidance(state, plan)
+    expect(result.desiredDirection.y).toBeGreaterThan(0.5)
   })
 })
 
@@ -257,6 +362,7 @@ function createPlan(
       aimPosition,
       direction: direction.clone().normalize(),
       bearingAngleDeg,
+      requiredArrivalVelocity: new Vector3(0, 0, 0),
     },
     travel: {
       currentDistanceAu: plannedDistanceAu,

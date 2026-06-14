@@ -8,7 +8,11 @@ import {
   type ShipState,
 } from './physics'
 import { directionToYawPitch } from './trajectory'
-import type { TransferPlannerResult } from './transfer-planner'
+import type {
+  ShipCapabilities,
+  TransferPlannerResult,
+} from './transfer-planner'
+import { DEFAULT_SHIP_CAPABILITIES } from './transfer-planner'
 
 export type AutonomousGuidancePhase =
   | 'acquiring'
@@ -46,9 +50,18 @@ export function computeAutonomousGuidance(
   plannerResult: TransferPlannerResult,
   previousPhase?: AutonomousGuidancePhase,
 ): AutonomousGuidanceResult {
+  const leadWeight = computeLeadWeight(
+    plannerResult,
+    null,
+  )
+  const liveLead = computeLiveLeadPosition(plannerResult, leadWeight)
+  const blendedAim = plannerResult.guidance.aimPosition
+    .clone()
+    .lerp(liveLead, leadWeight)
+  const effectiveAimOffset = blendedAim.sub(shipState.position)
   const desiredDirection =
-    plannerResult.guidance.direction.lengthSq() > 0
-      ? plannerResult.guidance.direction.clone().normalize()
+    effectiveAimOffset.lengthSq() > 0
+      ? effectiveAimOffset.normalize()
       : new Vector3(1, 0, 0)
   const { forward, right, up } = getShipOrientationFromAngles(
     shipState.yaw,
@@ -247,6 +260,51 @@ function dampedAxis(value: number): number {
   }
 
   return Math.max(-0.75, Math.min(0.75, value))
+}
+
+function computeLeadWeight(
+  plannerResult: TransferPlannerResult,
+  capabilities: ShipCapabilities | null,
+): number {
+  if (
+    plannerResult.status === 'intercept-overrun' ||
+    plannerResult.status === 'lead-chase'
+  ) {
+    return 1
+  }
+
+  const fullScale =
+    capabilities?.leadPursuitFullScaleAu ??
+    DEFAULT_SHIP_CAPABILITIES.leadPursuitFullScaleAu
+  if (fullScale <= 0) {
+    return 0
+  }
+
+  const motion = plannerResult.travel.targetMotionDuringInterceptAu
+  const weight = motion / fullScale
+
+  return weight < 0 ? 0 : weight > 1 ? 1 : weight
+}
+
+function computeLiveLeadPosition(
+  plannerResult: TransferPlannerResult,
+  leadWeight: number,
+): Vector3 {
+  if (leadWeight <= 0) {
+    return plannerResult.guidance.aimPosition.clone()
+  }
+
+  const remainingSeconds =
+    plannerResult.travel.interceptTimeSeconds ??
+    (plannerResult.travel.etaDays
+      ? plannerResult.travel.etaDays * 86_400
+      : 0)
+  return plannerResult.destination.currentPosition
+    .clone()
+    .addScaledVector(
+      plannerResult.guidance.requiredArrivalVelocity,
+      remainingSeconds,
+    )
 }
 
 function clampPositive(value: number): number {

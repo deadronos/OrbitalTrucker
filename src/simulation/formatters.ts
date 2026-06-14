@@ -101,6 +101,10 @@ export function formatTransferPlannerStatus(
       return 'Current fix'
     case 'future-intercept':
       return 'Future intercept'
+    case 'intercept-overrun':
+      return 'Intercept overrun'
+    case 'lead-chase':
+      return 'Lead chase'
     case 'no-solution':
       return 'Fallback'
   }
