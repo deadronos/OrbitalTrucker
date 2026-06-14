@@ -1,7 +1,7 @@
 import { Vector3 } from 'three'
 import { describe, expect, it } from 'vitest'
 
-import { planTransfer } from '../../src/simulation/transfer-planner'
+import { planTransfer, type TransferPlannerStatus } from '../../src/simulation/transfer-planner'
 
 const BASE_DATE = new Date('2026-03-30T00:00:00.000Z')
 
@@ -149,6 +149,19 @@ describe('planTransfer', () => {
     expect(nearPlan.guidance.aimPosition.y).not.toBeCloseTo(
       highPlan.guidance.aimPosition.y,
     )
+  })
+
+  it('exposes the five-state status enum to consumers', () => {
+    // Compile-time check: this assignment must compile if and only if
+    // every member of the enum is present in TransferPlannerStatus.
+    const _status: TransferPlannerStatus[] = [
+      'current-position',
+      'future-intercept',
+      'intercept-overrun',
+      'lead-chase',
+      'no-solution',
+    ]
+    expect(_status).toHaveLength(5)
   })
 })
 
