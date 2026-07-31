@@ -14,8 +14,9 @@ describe('formatters', () => {
     expect(formatDistanceAu(5.203)).toBe('5.20 AU')
   })
 
-  it('formats sub-AU distances as million kilometers', () => {
+  it('formats sub-AU distances as million kilometers or kilometers', () => {
     expect(formatDistanceAu(0.5)).toBe('74.80 million km')
+    expect(formatDistanceAu(0.00018)).toBe('26,928 km')
   })
 
   it('formats ship speed with context-aware precision', () => {

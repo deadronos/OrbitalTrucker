@@ -8,6 +8,8 @@ import {
   getNextMissionStatus,
   isMissionCargoLoaded,
   isMissionCompleted,
+  loadCompletedMissionIds,
+  saveCompletedMissionIds,
   MISSION_CATALOG,
 } from '../../src/world/missions'
 
@@ -174,5 +176,17 @@ describe('mission state machine', () => {
         'mars-high-port',
       ),
     ).toBe('in-transit')
+  })
+
+  it('persists and loads completed mission IDs from localStorage', () => {
+    localStorage.clear()
+    const set1 = loadCompletedMissionIds()
+    expect(set1.size).toBe(0)
+
+    saveCompletedMissionIds(new Set(['mars-supply-run', 'jovian-outpost-resupply']))
+    const set2 = loadCompletedMissionIds()
+    expect(set2.has('mars-supply-run')).toBe(true)
+    expect(set2.has('jovian-outpost-resupply')).toBe(true)
+    expect(set2.size).toBe(2)
   })
 })

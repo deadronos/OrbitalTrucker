@@ -27,6 +27,7 @@ export type ShipPhysicsRefs = {
  */
 export function useShipPhysics(
   controlInputRef: React.RefObject<ShipControlInput>,
+  timePaused = false,
 ): ShipPhysicsRefs {
   const shipStateRef = useRef<ShipState>(createInitialShipState())
   const shipRef = useRef<Group>(null)
@@ -36,7 +37,7 @@ export function useShipPhysics(
   const shipQuaternionRef = useRef(new Quaternion())
 
   useFrame((_, delta) => {
-    const realDelta = Math.min(delta, 0.05)
+    const realDelta = timePaused ? 0 : Math.min(delta, 0.05)
     const result = stepShipPhysics(
       shipStateRef.current,
       controlInputRef.current ?? createIdleShipControls(),

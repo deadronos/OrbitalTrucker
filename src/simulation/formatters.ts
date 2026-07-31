@@ -7,7 +7,13 @@ export function formatDistanceAu(distanceAu: number): string {
     return `${distanceAu.toFixed(2)} AU`
   }
 
-  return `${((distanceAu * ASTRONOMICAL_UNIT_KM) / 1_000_000).toFixed(2)} million km`
+  const distanceKm = distanceAu * ASTRONOMICAL_UNIT_KM
+
+  if (distanceKm < 100_000) {
+    return `${Math.round(distanceKm).toLocaleString()} km`
+  }
+
+  return `${(distanceKm / 1_000_000).toFixed(2)} million km`
 }
 
 export function formatShipSpeedKmPerSecond(speedKmPerSecond: number): string {

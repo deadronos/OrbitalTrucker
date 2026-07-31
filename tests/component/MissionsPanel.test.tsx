@@ -164,6 +164,23 @@ describe('MissionsPanel', () => {
       screen.getByTestId('accept-mission-lunar-logistics-delivery'),
     ).toBeInTheDocument()
   })
+
+  it('permanently displays Delivered for all contracts in completedMissionIds', () => {
+    const completedSet = new Set(['mars-supply-run'])
+    render(
+      <MissionsPanel
+        activeMissionId="jovian-outpost-resupply"
+        completedMissionIds={completedSet}
+        credits={4200}
+        missionStatus="active"
+        missions={missions}
+        onAcceptMission={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('Delivered ✓')).toBeInTheDocument()
+    expect(screen.queryByTestId('accept-mission-mars-supply-run')).toBeNull()
+  })
 })
 
 describe('pickup and credit balance', () => {

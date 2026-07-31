@@ -1,5 +1,6 @@
 import { MathUtils, Vector3 } from 'three'
 
+import { getLocationArrivalRadiusAu } from '../world/locations'
 import {
   createIdleShipControls,
   getShipOrientationFromAngles,
@@ -32,7 +33,6 @@ export type AutonomousGuidanceResult = {
 
 const ALIGNMENT_THRUST_WINDOW_DEG = 12
 const ALIGNMENT_BRAKE_WINDOW_DEG = 30
-const ARRIVAL_DISTANCE_AU = 0.001
 const ARRIVAL_SPEED_AU_PER_SEC = 4e-6
 const TURN_BRAKE_SPEED_AU_PER_SEC = 2e-6
 const APPROACH_TAPER_START_RATIO = 0.45
@@ -79,8 +79,11 @@ export function computeAutonomousGuidance(
       ? (closingSpeedAuPerSec * closingSpeedAuPerSec) /
         (2 * THRUST_NORMAL_AU_PER_S2)
       : 0
+  const baseArrivalDistance = getLocationArrivalRadiusAu(
+    plannerResult.destinationId,
+  )
   const arrivalDistanceAu = Math.max(
-    ARRIVAL_DISTANCE_AU,
+    baseArrivalDistance,
     Math.min(0.01, plannerResult.travel.plannedDistanceAu * 0.1),
   )
   const phase = selectGuidancePhase({
@@ -181,11 +184,11 @@ function selectGuidancePhase({
   previousPhase?: AutonomousGuidancePhase
   speedAuPerSec: number
 }): AutonomousGuidancePhase {
-  if (
-    plannedDistanceAu <= arrivalDistanceAu &&
-    speedAuPerSec <= ARRIVAL_SPEED_AU_PER_SEC
-  ) {
-    return 'arrived'
+  if (plannedDistanceAu <= arrivalDistanceAu) {
+    if (speedAuPerSec <= ARRIVAL_SPEED_AU_PER_SEC) {
+      return 'arrived'
+    }
+    return 'braking'
   }
 
   const shouldEnterBraking =
@@ -242,7 +245,11 @@ function scaleSteeringError(errorRad: number): number {
     return 0
   }
 
-  return Math.sign(errorRad) * Math.min(1, magnitude / STEERING_FULL_SCALE_RAD)
+  const effectiveError = magnitude - STEERING_DEADZONE_RAD
+  const activeRange = STEERING_FULL_SCALE_RAD - STEERING_DEADZONE_RAD
+  const scaled = Math.min(1, effectiveError / activeRange)
+
+  return Math.sign(errorRad) * scaled
 }
 
 function dampedAxis(value: number): number {
