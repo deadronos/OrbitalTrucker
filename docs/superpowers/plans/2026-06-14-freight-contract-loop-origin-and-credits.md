@@ -447,11 +447,7 @@ Replace the contents of `src/world/missions.ts` with:
 
 ```ts
 export type MissionStatus =
-  | 'available'
-  | 'active'
-  | 'in-transit'
-  | 'completed'
-  | 'failed'
+  'available' | 'active' | 'in-transit' | 'completed' | 'failed'
 
 export type FreightMission = {
   id: string

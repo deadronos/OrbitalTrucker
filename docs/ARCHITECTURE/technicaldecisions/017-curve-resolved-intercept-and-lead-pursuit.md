@@ -7,7 +7,7 @@
 ## Context
 
 The transfer planner introduced in ADR 012 aimed the ship at a curve-
-*resolved* future position by running an iterative re-solve against a
+_resolved_ future position by running an iterative re-solve against a
 constant-velocity estimate of the target. For inner-planet transfers
 this worked, but for interplanetary transfers the target's actual
 heliocentric motion is curved and the constant-velocity sample drifted
@@ -21,7 +21,7 @@ destination's continued motion past the planner's predicted arrival.
 
 When the solver could not converge, the planner returned
 `aimPosition = currentPosition` and status `no-solution`, leaving the
-ship chasing the target's *current* position forever. The HUD did not
+ship chasing the target's _current_ position forever. The HUD did not
 distinguish this degenerate chase from a real intercept plan.
 
 Issue #52 calls out that this is the highest-leverage correctness bug
@@ -103,7 +103,7 @@ five-state status without adding new overlay types.
 
 ### Positive
 
-- Long-haul transfers now converge on the target's *actual* position
+- Long-haul transfers now converge on the target's _actual_ position
   at the predicted intercept time.
 - The HUD distinguishes the four non-trivial planner states
   (`future-intercept`, `intercept-overrun`, `lead-chase`,

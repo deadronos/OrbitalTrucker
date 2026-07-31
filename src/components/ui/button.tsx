@@ -8,8 +8,7 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default:
-          'bg-sky-400 text-slate-950 shadow-sm hover:bg-sky-300',
+        default: 'bg-sky-400 text-slate-950 shadow-sm hover:bg-sky-300',
         secondary:
           'border border-white/10 bg-white/5 text-slate-100 hover:bg-white/10',
         outline:
@@ -30,7 +29,8 @@ const buttonVariants = cva(
 )
 
 export interface ButtonProps
-  extends ButtonHTMLAttributes<HTMLButtonElement>,
+  extends
+    ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {}
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(

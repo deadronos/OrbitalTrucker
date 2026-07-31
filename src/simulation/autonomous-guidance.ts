@@ -15,10 +15,7 @@ import type {
 import { DEFAULT_SHIP_CAPABILITIES } from './transfer-planner'
 
 export type AutonomousGuidancePhase =
-  | 'acquiring'
-  | 'cruising'
-  | 'braking'
-  | 'arrived'
+  'acquiring' | 'cruising' | 'braking' | 'arrived'
 
 export type AutonomousGuidanceResult = {
   phase: AutonomousGuidancePhase
@@ -50,10 +47,7 @@ export function computeAutonomousGuidance(
   plannerResult: TransferPlannerResult,
   previousPhase?: AutonomousGuidancePhase,
 ): AutonomousGuidanceResult {
-  const leadWeight = computeLeadWeight(
-    plannerResult,
-    null,
-  )
+  const leadWeight = computeLeadWeight(plannerResult, null)
   const liveLead = computeLiveLeadPosition(plannerResult, leadWeight)
   const blendedAim = plannerResult.guidance.aimPosition
     .clone()
@@ -248,10 +242,7 @@ function scaleSteeringError(errorRad: number): number {
     return 0
   }
 
-  return (
-    Math.sign(errorRad) *
-    Math.min(1, magnitude / STEERING_FULL_SCALE_RAD)
-  )
+  return Math.sign(errorRad) * Math.min(1, magnitude / STEERING_FULL_SCALE_RAD)
 }
 
 function dampedAxis(value: number): number {
@@ -296,9 +287,7 @@ function computeLiveLeadPosition(
 
   const remainingSeconds =
     plannerResult.travel.interceptTimeSeconds ??
-    (plannerResult.travel.etaDays
-      ? plannerResult.travel.etaDays * 86_400
-      : 0)
+    (plannerResult.travel.etaDays ? plannerResult.travel.etaDays * 86_400 : 0)
   return plannerResult.destination.currentPosition
     .clone()
     .addScaledVector(

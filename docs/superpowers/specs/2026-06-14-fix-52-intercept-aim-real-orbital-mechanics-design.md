@@ -19,7 +19,7 @@ target using its current velocity × remaining time" as the ship nears
 arrival. The planner's status enum grows from three to five values so the
 HUD can describe the new chase-and-lead fall-back distinctly from a real
 intercept. All changes are additive to the public planner/guidance types
-unless the change is the *fix* itself, in which case the field is repurposed
+unless the change is the _fix_ itself, in which case the field is repurposed
 in the same task.
 
 **Tech Stack:** TypeScript, Vitest, React Three Fiber, Three.js, the
@@ -43,7 +43,7 @@ Issue #52 enumerates three concrete defects in the navigation stack:
    past the planner's predicted arrival.
 3. When the solver cannot converge, the planner returns
    `aimPosition = currentPosition` and status `no-solution`. The ship is
-   then asked to chase the destination's *current* position forever with
+   then asked to chase the destination's _current_ position forever with
    no HUD visibility into this state.
 
 The fix touches only `src/simulation/transfer-planner.ts`,
@@ -59,8 +59,8 @@ The planner keeps its iterative re-solve loop but, on each iteration,
 **calls `resolveDestinationPosition(destinationId, candidateDate)`** instead
 of using a fixed sample velocity. This is the same resolver the rest of the
 codebase uses for destination positions, so the iteration converges on a
-position the destination will *actually* occupy at `candidateDate`. The
-existing `estimatedVelocityAuPerSec` field stays as a *display* field (it
+position the destination will _actually_ occupy at `candidateDate`. The
+existing `estimatedVelocityAuPerSec` field stays as a _display_ field (it
 tells the HUD how fast the target is moving), but the solver no longer
 depends on it.
 
@@ -89,9 +89,9 @@ guidance: {
 `requiredArrivalVelocity` is computed as
 `resolveDestinationPosition(id, predictedDate + 1s).sub(resolveDestinationPosition(id, predictedDate)).divideScalar(1)`
 when a predicted date exists, otherwise as a one-second forward
-difference from the current date. This is the *exact* instantaneous
+difference from the current date. This is the _exact_ instantaneous
 velocity of the target on its curve, not a sampled average. The guidance
-layer uses it for lead-pursuit; the HUD *does not* show it (it is a
+layer uses it for lead-pursuit; the HUD _does not_ show it (it is a
 guidance-internal signal).
 
 ### 3. Planner status grows from 3 to 5
@@ -100,15 +100,15 @@ The status enum becomes:
 
 ```ts
 export type TransferPlannerStatus =
-  | 'current-position'   // ship is too slow for planning; aim at current
-  | 'future-intercept'   // solver converged on a curve-resolved intercept
-  | 'intercept-overrun'  // target is outrunnable, but the planner still
-                         // returns the last converged fix and a status
-                         // that drives the lead-chase blend in guidance
-  | 'lead-chase'         // solver could not converge at all; aim at
-                         // currentPosition + currentVelocity * eta
-  | 'no-solution'        // retained as a strict error state: no eta, no
-                         // aim, and guidance uses idle controls. (See §4.)
+  | 'current-position' // ship is too slow for planning; aim at current
+  | 'future-intercept' // solver converged on a curve-resolved intercept
+  | 'intercept-overrun' // target is outrunnable, but the planner still
+  // returns the last converged fix and a status
+  // that drives the lead-chase blend in guidance
+  | 'lead-chase' // solver could not converge at all; aim at
+  // currentPosition + currentVelocity * eta
+  | 'no-solution' // retained as a strict error state: no eta, no
+// aim, and guidance uses idle controls. (See §4.)
 ```
 
 Semantics:
@@ -120,7 +120,7 @@ Semantics:
   destination's curve at `predictedDate`. `aimPosition` is that
   `predictedPosition`. HUD copy: "Future intercept".
 - `intercept-overrun` — the solver determined the target can outrun the
-  ship, but the planner *still* returns the last valid iteration's
+  ship, but the planner _still_ returns the last valid iteration's
   `predictedPosition` and `requiredArrivalVelocity`. HUD copy:
   "Intercept overrun". The guidance layer uses the live lead-pursuit
   blend, so the ship visibly chases without going into a static-point
@@ -131,7 +131,7 @@ Semantics:
   and `etaEstimate` is the naive range/speed ratio. HUD copy: "Lead
   chase".
 - `no-solution` — retained as a strict error state for the case where the
-  planner cannot produce *anything* (e.g. zero-velocity ship with a
+  planner cannot produce _anything_ (e.g. zero-velocity ship with a
   high-velocity target, where even the lead-pursuit aim is meaningless).
   In this state `predictedDate`, `interceptTimeSeconds`, and
   `etaDays` are all `null`, `aimPosition` is the destination's current
@@ -150,12 +150,14 @@ guidance layer is no longer asked to chase a static point in any of them.
 `computeAutonomousGuidance` gains a new internal computation:
 
 ```ts
-const targetMotionAu =
-  plannerResult.travel.targetMotionDuringInterceptAu
+const targetMotionAu = plannerResult.travel.targetMotionDuringInterceptAu
 const leadWeight = clamp(targetMotionAu / 0.05, 0, 1) // 0 at <0.05 AU motion, 1 at >=0.05 AU
 const liveLeadPosition = target.currentPosition
   .clone()
-  .addScaledVector(plannerResult.guidance.requiredArrivalVelocity, remainingTimeSeconds)
+  .addScaledVector(
+    plannerResult.guidance.requiredArrivalVelocity,
+    remainingTimeSeconds,
+  )
 const blendedAim = plannerResult.guidance.aimPosition
   .clone()
   .lerp(liveLeadPosition, leadWeight)
@@ -167,7 +169,7 @@ already measures how much the target is going to move over the transit;
 a small target motion (< 0.05 AU) means lead-pursuit buys nothing and
 the planner's static aim is fine. A large target motion (interplanetary
 scale) means the live lead dominates and the ship's heading tracks the
-target's *current* velocity. The blend is smooth, no per-frame wobble.
+target's _current_ velocity. The blend is smooth, no per-frame wobble.
 
 The 0.05 AU threshold is exposed as a capability input:
 
@@ -184,7 +186,7 @@ shipCapabilities: {
 For the `intercept-overrun` and `lead-chase` planner statuses, guidance
 forces `leadWeight = 1` and skips the planner's static aim entirely,
 because in those cases the planner's `aimPosition` is either stale or
-the lead is the *only* useful signal. The HUD copy already tells the
+the lead is the _only_ useful signal. The HUD copy already tells the
 player they are in a chase, so the visual change (no intercept marker,
 no static ring) is consistent.
 
@@ -222,18 +224,18 @@ The work fits in the existing file layout. New code is added next to its
 caller; no new files are created in `src/simulation/` or `src/components/`.
 The new ADR is a new file under `docs/ARCHITECTURE/technicaldecisions/`.
 
-| File | Change |
-| --- | --- |
-| `src/simulation/transfer-planner.ts` | Add `requiredArrivalVelocity` to `TransferPlannerResult.guidance`. Add `intercept-overrun` and `lead-chase` to the status enum. Replace the constant-velocity assumption in the iteration loop with curve-resolved iteration. Add `leadPursuitFullScaleAu` to `ShipCapabilities` and `DEFAULT_SHIP_CAPABILITIES`. |
-| `src/simulation/autonomous-guidance.ts` | Compute `leadWeight` from `targetMotionDuringInterceptAu` and the capability threshold. Blend the aim point with the live lead. Force `leadWeight = 1` for `intercept-overrun` and `lead-chase`. |
-| `src/simulation/formatters.ts` | Extend `formatTransferPlannerStatus` to cover the two new cases. |
-| `src/components/ControlPanel.tsx` | Extend `describePlannerState` to cover the two new cases. |
-| `src/scene/navigation-visuals.ts` | Replace the inline `status === 'future-intercept'` predicate with a named helper `shouldShowInterceptMarker` so the marker logic is testable and the chase states do not show a stale ring. |
-| `docs/ARCHITECTURE/technicaldecisions/017-curve-resolved-intercept-and-lead-pursuit.md` | New ADR documenting the decisions above. |
-| `tests/unit/transfer-planner.test.ts` | Add tests for the new statuses, the new `requiredArrivalVelocity` field, and a curve-resolver test (Keplerian resolver) showing the solver converges on the actual curve. |
-| `tests/unit/autonomous-guidance.test.ts` | Add tests for the lead-pursuit blend: low-motion uses static aim, high-motion uses live lead, and `intercept-overrun` / `lead-chase` force `leadWeight = 1`. |
-| `tests/unit/navigation-visuals.test.ts` | Add tests that the intercept marker is hidden for chase statuses. |
-| `tests/integration/autonomous-travel-pipeline.test.ts` | Add an end-to-end test that drives the ship at a destination whose position comes from a Keplerian resolver and asserts the ship converges to within the existing arrival tolerance, not just that `phase === 'arrived'` for a static resolver. |
+| File                                                                                    | Change                                                                                                                                                                                                                                                                                                            |
+| --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/simulation/transfer-planner.ts`                                                    | Add `requiredArrivalVelocity` to `TransferPlannerResult.guidance`. Add `intercept-overrun` and `lead-chase` to the status enum. Replace the constant-velocity assumption in the iteration loop with curve-resolved iteration. Add `leadPursuitFullScaleAu` to `ShipCapabilities` and `DEFAULT_SHIP_CAPABILITIES`. |
+| `src/simulation/autonomous-guidance.ts`                                                 | Compute `leadWeight` from `targetMotionDuringInterceptAu` and the capability threshold. Blend the aim point with the live lead. Force `leadWeight = 1` for `intercept-overrun` and `lead-chase`.                                                                                                                  |
+| `src/simulation/formatters.ts`                                                          | Extend `formatTransferPlannerStatus` to cover the two new cases.                                                                                                                                                                                                                                                  |
+| `src/components/ControlPanel.tsx`                                                       | Extend `describePlannerState` to cover the two new cases.                                                                                                                                                                                                                                                         |
+| `src/scene/navigation-visuals.ts`                                                       | Replace the inline `status === 'future-intercept'` predicate with a named helper `shouldShowInterceptMarker` so the marker logic is testable and the chase states do not show a stale ring.                                                                                                                       |
+| `docs/ARCHITECTURE/technicaldecisions/017-curve-resolved-intercept-and-lead-pursuit.md` | New ADR documenting the decisions above.                                                                                                                                                                                                                                                                          |
+| `tests/unit/transfer-planner.test.ts`                                                   | Add tests for the new statuses, the new `requiredArrivalVelocity` field, and a curve-resolver test (Keplerian resolver) showing the solver converges on the actual curve.                                                                                                                                         |
+| `tests/unit/autonomous-guidance.test.ts`                                                | Add tests for the lead-pursuit blend: low-motion uses static aim, high-motion uses live lead, and `intercept-overrun` / `lead-chase` force `leadWeight = 1`.                                                                                                                                                      |
+| `tests/unit/navigation-visuals.test.ts`                                                 | Add tests that the intercept marker is hidden for chase statuses.                                                                                                                                                                                                                                                 |
+| `tests/integration/autonomous-travel-pipeline.test.ts`                                  | Add an end-to-end test that drives the ship at a destination whose position comes from a Keplerian resolver and asserts the ship converges to within the existing arrival tolerance, not just that `phase === 'arrived'` for a static resolver.                                                                   |
 
 Each unit-test file change is small and additive. The integration test
 reuses the existing pipeline harness.
@@ -275,8 +277,8 @@ reuses the existing pipeline harness.
   tests and make no behavioral change there.
 - The iterative solver keeps the existing
   `capabilities.maxInterceptIterations` cap. The new behavior is that
-  when the cap is reached *and* the error is below tolerance, we report
-  `future-intercept`; when the cap is reached *and* the error is still
+  when the cap is reached _and_ the error is below tolerance, we report
+  `future-intercept`; when the cap is reached _and_ the error is still
   above tolerance, we report `intercept-overrun` if we have a valid
   last iteration, otherwise `lead-chase`. This is a strict refinement
   of the existing "did not converge → `no-solution`" path.
@@ -306,7 +308,7 @@ The plan addresses these directly:
   Keplerian resolver (via the real `resolveLocationPosition` with the
   existing test ephemeris) as the destination resolver. The test runs
   the full `planTransfer → computeAutonomousGuidance → stepShipPhysics`
-  loop and asserts the ship reaches the destination's *current*
+  loop and asserts the ship reaches the destination's _current_
   position at the end of the run, with `phase === 'arrived'`. The test
   must fail against the current code, where the constant-velocity
   assumption makes the planner report a stale `predictedPosition` and
@@ -323,7 +325,7 @@ existing Vitest conventions. No new testing infrastructure.
 ## Out of Scope
 
 - Replacing the destination-resolver interface (e.g. with a real Lambert
-  solver). The current resolver *is* the curve; the iterative re-solve
+  solver). The current resolver _is_ the curve; the iterative re-solve
   gets the right answer against that curve.
 - A proper flight-management system (autopilot, station-keeping, etc.).
   The four guidance phases stay as they are.

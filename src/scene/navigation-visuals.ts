@@ -6,8 +6,7 @@ export type NavigationVisualState = {
   destinationPosition: TransferPlannerResult['destination']['currentPosition']
   aimPosition: TransferPlannerResult['guidance']['aimPosition']
   interceptPosition:
-    | TransferPlannerResult['destination']['predictedPosition']
-    | null
+    TransferPlannerResult['destination']['predictedPosition'] | null
   showInterceptMarker: boolean
 }
 

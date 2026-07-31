@@ -163,7 +163,7 @@ introduces:
   `intercept-overrun`, `lead-chase`, `no-solution`)
 - a distance-based lead-pursuit blend in the guidance layer
 
-This ADR remains the architectural source of truth for *why* the
-planner is a separate module and *what* shape its result takes;
+This ADR remains the architectural source of truth for _why_ the
+planner is a separate module and _what_ shape its result takes;
 ADR 017 is the source of truth for the curve-resolved iteration and
 the five-state status.

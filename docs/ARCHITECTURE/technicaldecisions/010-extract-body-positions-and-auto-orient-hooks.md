@@ -37,10 +37,9 @@ harder to replace or test either concern independently.
 Owns both the body mesh refs and the per-frame body transform update loop.
 
 **Signature:**
+
 ```ts
-function useBodyPositions(
-  simulatedDateRef: React.RefObject<Date>,
-): {
+function useBodyPositions(simulatedDateRef: React.RefObject<Date>): {
   bodyMeshRefs: React.MutableRefObject<Record<string, BodyRefs>>
   bodyPositionsRef: React.RefObject<Map<string, Vector3>>
 }
@@ -64,6 +63,7 @@ function useBodyPositions(
 Owns the auto-orient behaviour (the "T" key / orient-to-target button).
 
 **Signature:**
+
 ```ts
 function useAutoOrient(
   autoOrientTrigger: number,

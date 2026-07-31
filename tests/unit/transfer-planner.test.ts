@@ -1,7 +1,10 @@
 import { Vector3 } from 'three'
 import { describe, expect, it } from 'vitest'
 
-import { planTransfer, type TransferPlannerStatus } from '../../src/simulation/transfer-planner'
+import {
+  planTransfer,
+  type TransferPlannerStatus,
+} from '../../src/simulation/transfer-planner'
 
 const BASE_DATE = new Date('2026-03-30T00:00:00.000Z')
 

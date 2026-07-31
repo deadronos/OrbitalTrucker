@@ -123,7 +123,9 @@ function buildPlannerResult(
   shipState: ShipState,
   simulatedDate: Date,
   bodyPositions: Map<string, Vector3>,
-  fallbackSolarBodyResolver: ReturnType<typeof createEphemerisSolarBodyResolver>,
+  fallbackSolarBodyResolver: ReturnType<
+    typeof createEphemerisSolarBodyResolver
+  >,
   zeroVector: Vector3,
 ): TransferPlannerResult {
   const { forward } = getShipOrientationFromAngles(

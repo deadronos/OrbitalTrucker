@@ -139,12 +139,11 @@ export function planTransfer({
     if (seedSeconds === null) {
       // No real constant-speed root exists. Treat as lead-chase: still
       // produce a lead-chase fallback so the ship has a heading.
-      const naiveEtaSeconds = shipPosition.distanceTo(currentPosition) /
-        planningSpeedAuPerSec
-      const leadPosition = currentPosition.clone().addScaledVector(
-        estimatedVelocityAuPerSec,
-        naiveEtaSeconds,
-      )
+      const naiveEtaSeconds =
+        shipPosition.distanceTo(currentPosition) / planningSpeedAuPerSec
+      const leadPosition = currentPosition
+        .clone()
+        .addScaledVector(estimatedVelocityAuPerSec, naiveEtaSeconds)
       predictedPosition = leadPosition
       predictedDate = addSeconds(date, naiveEtaSeconds)
       interceptTimeSeconds = naiveEtaSeconds
@@ -172,13 +171,16 @@ export function planTransfer({
           destinationId,
           candidateDate,
         )
-        const nextSeconds = shipPosition.distanceTo(candidatePosition) /
-          planningSpeedAuPerSec
+        const nextSeconds =
+          shipPosition.distanceTo(candidatePosition) / planningSpeedAuPerSec
 
         solutionErrorSeconds = Math.abs(nextSeconds - candidateSeconds)
         if (candidateSeconds > maxLookaheadSeconds) {
-          if (lastUsablePosition && lastUsableCandidateSeconds !== null &&
-              lastUsableCandidateSeconds <= maxLookaheadSeconds) {
+          if (
+            lastUsablePosition &&
+            lastUsableCandidateSeconds !== null &&
+            lastUsableCandidateSeconds <= maxLookaheadSeconds
+          ) {
             predictedPosition = lastUsablePosition
             predictedDate = lastUsableDate
             interceptTimeSeconds = lastUsableCandidateSeconds
@@ -294,10 +296,7 @@ function computeArrivalVelocity(
   resolveDestinationPosition: (destinationId: string, date: Date) => Vector3,
 ): Vector3 {
   const current = resolveDestinationPosition(destinationId, date)
-  const next = resolveDestinationPosition(
-    destinationId,
-    addSeconds(date, 1),
-  )
+  const next = resolveDestinationPosition(destinationId, addSeconds(date, 1))
   return next.sub(current)
   return next.clone().sub(current)
 }

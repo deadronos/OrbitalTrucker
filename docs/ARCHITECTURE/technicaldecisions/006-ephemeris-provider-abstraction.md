@@ -6,7 +6,7 @@
 ## Context
 
 The original simulation computed heliocentric body positions with a single
-low-precision J2000 Keplerian element series (ADR 002).  This was fast and
+low-precision J2000 Keplerian element series (ADR 002). This was fast and
 sufficient for an early prototype, but had documented weaknesses:
 
 - Errors of 1–2° of arc for outer planets (Jupiter, Saturn, Uranus, Neptune)
@@ -29,7 +29,11 @@ The interface defines two operations every provider must support:
 interface EphemerisProvider {
   readonly label: string
   getHeliocentricPositionAu(body: SolarBodyDefinition, date: Date): Vector3
-  buildOrbitPoints(body: SolarBodyDefinition, date: Date, samples?: number): Vector3[]
+  buildOrbitPoints(
+    body: SolarBodyDefinition,
+    date: Date,
+    samples?: number,
+  ): Vector3[]
 }
 ```
 
@@ -39,7 +43,7 @@ this interface.
 ### 2. Retain the Keplerian implementation as an explicit approximation fallback
 
 `KeplerianEphemerisProvider` (`src/ephemeris/keplerian.ts`) is the direct
-successor to the original code.  Its `label` property reads
+successor to the original code. Its `label` property reads
 `"Keplerian (approximation)"` so that any debugging output or future UI that
 exposes the active provider makes the approximation nature obvious.
 
@@ -48,7 +52,7 @@ It is still used as the fallback for Pluto, which is not covered by VSOP87.
 ### 3. Add a VSOP87D truncated provider as the new default
 
 `Vsop87EphemerisProvider` (`src/ephemeris/vsop87.ts`) implements the truncated
-VSOP87D theory (Bretagnon & Francou, A&A 202, 1988).  The coefficient tables
+VSOP87D theory (Bretagnon & Francou, A&A 202, 1988). The coefficient tables
 are stored in `src/ephemeris/vsop87-coefficients.ts`.
 
 **Algorithm summary:**
@@ -57,13 +61,13 @@ are stored in `src/ephemeris/vsop87-coefficients.ts`.
 - Compute τ = Julian millennia from J2000.0 = (JD − 2 451 545) / 365 250
 - For each body, evaluate three power series L(τ), B(τ), R(τ):
   - L = heliocentric ecliptic longitude (radians)
-  - B = heliocentric ecliptic latitude  (radians)
+  - B = heliocentric ecliptic latitude (radians)
   - R = heliocentric distance (AU)
 - Each power series: Lₙ = Σᵢ Aᵢ · cos(Bᵢ + Cᵢ · τ), scaled by 10⁻⁸
 - Convert to J2000 ecliptic Cartesian, then map to Three.js Y-up:
-  - Three.js X = R · cos(B) · cos(L)  (towards vernal equinox)
-  - Three.js Y = R · sin(B)            (north ecliptic pole)
-  - Three.js Z = R · cos(B) · sin(L)  (90° east in ecliptic plane)
+  - Three.js X = R · cos(B) · cos(L) (towards vernal equinox)
+  - Three.js Y = R · sin(B) (north ecliptic pole)
+  - Three.js Z = R · cos(B) · sin(L) (90° east in ecliptic plane)
 
 **Coverage:** Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune.
 Pluto falls back to `KeplerianEphemerisProvider` (this fallback path is
@@ -78,7 +82,7 @@ This is a significant improvement over the Keplerian approach which can err by
 
 The public functions `getHeliocentricPositionAu` and `buildOrbitPoints` still
 exist with unchanged signatures; they now delegate to the default provider
-(`Vsop87EphemerisProvider`).  Existing callers (e.g. `SolarBodies.tsx`,
+(`Vsop87EphemerisProvider`). Existing callers (e.g. `SolarBodies.tsx`,
 `SimulatorCanvas.tsx`) required no changes.
 
 ### 5. Validate against known reference positions in tests
@@ -119,10 +123,10 @@ exist with unchanged signatures; they now delegate to the default provider
 
 ## Approximation Fallbacks — Explicit Summary
 
-| Body   | Provider              | Accuracy    |
-|--------|-----------------------|-------------|
-| Mercury–Neptune | VSOP87D truncated | < 1 arcmin within ±500 yr of J2000 |
-| Pluto  | Keplerian (approximation) | ~1–2° errors over the simulation range |
+| Body            | Provider                  | Accuracy                               |
+| --------------- | ------------------------- | -------------------------------------- |
+| Mercury–Neptune | VSOP87D truncated         | < 1 arcmin within ±500 yr of J2000     |
+| Pluto           | Keplerian (approximation) | ~1–2° errors over the simulation range |
 
 These assignments are enforced at runtime: `Vsop87EphemerisProvider.getHeliocentricPositionAu`
 checks whether the body name is present in `VSOP87_COEFFICIENTS` and explicitly
@@ -130,10 +134,10 @@ delegates to `KeplerianEphemerisProvider` for absent bodies.
 
 ## References
 
-- Bretagnon P. & Francou G. (1988). *Planetary theories in rectangular and
-  spherical variables: VSOP 87 solutions.* A&A 202, 309–315.
-- Meeus J. (1998). *Astronomical Algorithms*, 2nd ed. Willmann-Bell. Chapters
+- Bretagnon P. & Francou G. (1988). _Planetary theories in rectangular and
+  spherical variables: VSOP 87 solutions._ A&A 202, 309–315.
+- Meeus J. (1998). _Astronomical Algorithms_, 2nd ed. Willmann-Bell. Chapters
   32–33 (truncated VSOP87 tables and algorithm).
-- Standish et al. (1992). *Orbital Ephemerides of the Sun, Moon, and Planets.*
+- Standish et al. (1992). _Orbital Ephemerides of the Sun, Moon, and Planets._
   Explanatory Supplement to the Astronomical Almanac (Keplerian element source
   for the fallback provider).
