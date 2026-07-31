@@ -16,18 +16,18 @@
 
 ## File Structure
 
-| File | Change |
-| --- | --- |
-| `docs/ARCHITECTURE/technicaldecisions/017-curve-resolved-intercept-and-lead-pursuit.md` | Create — new ADR documenting the design decisions |
-| `src/simulation/transfer-planner.ts` | Modify — extend status enum, add `requiredArrivalVelocity` and `leadPursuitFullScaleAu` |
-| `src/simulation/autonomous-guidance.ts` | Modify — add lead-pursuit blend |
-| `src/simulation/formatters.ts` | Modify — extend `formatTransferPlannerStatus` |
-| `src/components/ControlPanel.tsx` | Modify — extend `describePlannerState` |
-| `src/scene/navigation-visuals.ts` | Modify — extract `shouldShowInterceptMarker` helper |
-| `tests/unit/transfer-planner.test.ts` | Modify — new tests for statuses, `requiredArrivalVelocity`, curve-resolver |
-| `tests/unit/autonomous-guidance.test.ts` | Modify — new tests for lead-pursuit blend |
-| `tests/unit/navigation-visuals.test.ts` | Modify — new tests for marker gating |
-| `tests/integration/autonomous-travel-pipeline.test.ts` | Modify — new Keplerian end-to-end test |
+| File                                                                                    | Change                                                                                  |
+| --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `docs/ARCHITECTURE/technicaldecisions/017-curve-resolved-intercept-and-lead-pursuit.md` | Create — new ADR documenting the design decisions                                       |
+| `src/simulation/transfer-planner.ts`                                                    | Modify — extend status enum, add `requiredArrivalVelocity` and `leadPursuitFullScaleAu` |
+| `src/simulation/autonomous-guidance.ts`                                                 | Modify — add lead-pursuit blend                                                         |
+| `src/simulation/formatters.ts`                                                          | Modify — extend `formatTransferPlannerStatus`                                           |
+| `src/components/ControlPanel.tsx`                                                       | Modify — extend `describePlannerState`                                                  |
+| `src/scene/navigation-visuals.ts`                                                       | Modify — extract `shouldShowInterceptMarker` helper                                     |
+| `tests/unit/transfer-planner.test.ts`                                                   | Modify — new tests for statuses, `requiredArrivalVelocity`, curve-resolver              |
+| `tests/unit/autonomous-guidance.test.ts`                                                | Modify — new tests for lead-pursuit blend                                               |
+| `tests/unit/navigation-visuals.test.ts`                                                 | Modify — new tests for marker gating                                                    |
+| `tests/integration/autonomous-travel-pipeline.test.ts`                                  | Modify — new Keplerian end-to-end test                                                  |
 
 The work is sequential: each task depends on the previous task's exports and tests. Tasks 1–2 are docs/setup, Tasks 3–7 are the planner+guidance core, Tasks 8–10 are HUD/visual consumers, Tasks 11–14 are tests, Task 15 is the final ADR-012 link.
 
@@ -36,6 +36,7 @@ The work is sequential: each task depends on the previous task's exports and tes
 ## Task 1: Add ADR 017
 
 **Files:**
+
 - Create: `docs/ARCHITECTURE/technicaldecisions/017-curve-resolved-intercept-and-lead-pursuit.md`
 
 - [ ] **Step 1: Create the ADR file**
@@ -52,7 +53,7 @@ Create `docs/ARCHITECTURE/technicaldecisions/017-curve-resolved-intercept-and-le
 ## Context
 
 The transfer planner introduced in ADR 012 aimed the ship at a curve-
-*resolved* future position by running an iterative re-solve against a
+_resolved_ future position by running an iterative re-solve against a
 constant-velocity estimate of the target. For inner-planet transfers
 this worked, but for interplanetary transfers the target's actual
 heliocentric motion is curved and the constant-velocity sample drifted
@@ -66,7 +67,7 @@ destination's continued motion past the planner's predicted arrival.
 
 When the solver could not converge, the planner returned
 `aimPosition = currentPosition` and status `no-solution`, leaving the
-ship chasing the target's *current* position forever. The HUD did not
+ship chasing the target's _current_ position forever. The HUD did not
 distinguish this degenerate chase from a real intercept plan.
 
 Issue #52 calls out that this is the highest-leverage correctness bug
@@ -145,7 +146,7 @@ five-state status without adding new overlay types.
 
 ### Positive
 
-- Long-haul transfers now converge on the target's *actual* position
+- Long-haul transfers now converge on the target's _actual_ position
   at the predicted intercept time.
 - The HUD distinguishes the four non-trivial planner states
   (`future-intercept`, `intercept-overrun`, `lead-chase`,
@@ -195,6 +196,7 @@ git commit -m "docs(#52): add ADR 017 for curve-resolved intercept and lead-purs
 ## Task 2: Verify baseline tests pass
 
 **Files:**
+
 - Read: `package.json`
 
 - [ ] **Step 1: Install dependencies if needed**
@@ -212,6 +214,7 @@ Expected: all existing tests pass (the suite is currently green at HEAD `e88f4c9
 ## Task 3: Extend `TransferPlannerStatus` and add `requiredArrivalVelocity` field
 
 **Files:**
+
 - Modify: `src/simulation/transfer-planner.ts:5-8` (status enum)
 - Modify: `src/simulation/transfer-planner.ts:30-37` (`guidance` type)
 - Modify: `src/simulation/transfer-planner.ts:55-62` (default capabilities)
@@ -222,9 +225,7 @@ In `src/simulation/transfer-planner.ts`, replace lines 5–8:
 
 ```typescript
 export type TransferPlannerStatus =
-  | 'current-position'
-  | 'future-intercept'
-  | 'no-solution'
+  'current-position' | 'future-intercept' | 'no-solution'
 ```
 
 with:
@@ -243,28 +244,28 @@ export type TransferPlannerStatus =
 In the `TransferPlannerResult` type, replace the `guidance` block (lines 30–34):
 
 ```typescript
-  guidance: {
-    aimPosition: Vector3
-    direction: Vector3
-    bearingAngleDeg: number
-  }
+guidance: {
+  aimPosition: Vector3
+  direction: Vector3
+  bearingAngleDeg: number
+}
 ```
 
 with:
 
 ```typescript
-  guidance: {
-    aimPosition: Vector3
-    direction: Vector3
-    bearingAngleDeg: number
-    /**
-     * The target's instantaneous heliocentric velocity at the predicted
-     * intercept time (or at `date` when the planner is in
-     * `current-position` mode). Computed as a 1-second forward
-     * difference on the curve-resolver.
-     */
-    requiredArrivalVelocity: Vector3
-  }
+guidance: {
+  aimPosition: Vector3
+  direction: Vector3
+  bearingAngleDeg: number
+  /**
+   * The target's instantaneous heliocentric velocity at the predicted
+   * intercept time (or at `date` when the planner is in
+   * `current-position` mode). Computed as a 1-second forward
+   * difference on the curve-resolver.
+   */
+  requiredArrivalVelocity: Vector3
+}
 ```
 
 - [ ] **Step 3: Add `leadPursuitFullScaleAu` to the capabilities type**
@@ -327,6 +328,7 @@ git commit -m "refactor(#52): extend planner status enum and add requiredArrival
 ## Task 4: Add a unit test for the new status enum members
 
 **Files:**
+
 - Modify: `tests/unit/transfer-planner.test.ts` (add a new `it(...)` block)
 
 - [ ] **Step 1: Add the failing test**
@@ -334,18 +336,18 @@ git commit -m "refactor(#52): extend planner status enum and add requiredArrival
 Append to `tests/unit/transfer-planner.test.ts`, after the existing `retargets to a different intercept solution...` test, a new test:
 
 ```typescript
-  it('exposes the five-state status enum to consumers', () => {
-    // Compile-time check: this assignment must compile if and only if
-    // every member of the enum is present in TransferPlannerStatus.
-    const _status: TransferPlannerStatus[] = [
-      'current-position',
-      'future-intercept',
-      'intercept-overrun',
-      'lead-chase',
-      'no-solution',
-    ]
-    expect(_status).toHaveLength(5)
-  })
+it('exposes the five-state status enum to consumers', () => {
+  // Compile-time check: this assignment must compile if and only if
+  // every member of the enum is present in TransferPlannerStatus.
+  const _status: TransferPlannerStatus[] = [
+    'current-position',
+    'future-intercept',
+    'intercept-overrun',
+    'lead-chase',
+    'no-solution',
+  ]
+  expect(_status).toHaveLength(5)
+})
 ```
 
 - [ ] **Step 2: Add the import**
@@ -353,7 +355,10 @@ Append to `tests/unit/transfer-planner.test.ts`, after the existing `retargets t
 At the top of `tests/unit/transfer-planner.test.ts`, change the existing import from `src/simulation/transfer-planner` to also bring in the `TransferPlannerStatus` type:
 
 ```typescript
-import { planTransfer, type TransferPlannerStatus } from '../../src/simulation/transfer-planner'
+import {
+  planTransfer,
+  type TransferPlannerStatus,
+} from '../../src/simulation/transfer-planner'
 ```
 
 - [ ] **Step 3: Run the test to verify it passes**
@@ -374,6 +379,7 @@ git commit -m "test(#52): assert five-state planner status enum"
 ## Task 5: Implement iterative curve-resolved intercept and the new statuses in `planTransfer`
 
 **Files:**
+
 - Modify: `src/simulation/transfer-planner.ts:67-185` (`planTransfer` body)
 - Modify: `src/simulation/transfer-planner.ts:230` (return statement)
 
@@ -388,10 +394,7 @@ function computeArrivalVelocity(
   resolveDestinationPosition: (destinationId: string, date: Date) => Vector3,
 ): Vector3 {
   const current = resolveDestinationPosition(destinationId, date)
-  const next = resolveDestinationPosition(
-    destinationId,
-    addSeconds(date, 1),
-  )
+  const next = resolveDestinationPosition(destinationId, addSeconds(date, 1))
   return next.sub(current)
 }
 ```
@@ -401,92 +404,95 @@ function computeArrivalVelocity(
 In `src/simulation/transfer-planner.ts`, replace the `if (planningSpeedAuPerSec >= capabilities.minimumPlanningSpeedAuPerSec) { ... }` block (lines 92–185) with the following:
 
 ```typescript
-  if (planningSpeedAuPerSec >= capabilities.minimumPlanningSpeedAuPerSec) {
-    // Seed the iteration with the straight-line travel time to the
-    // current destination position. The iteration then refines against
-    // the curve-resolver on each pass.
-    let candidateSeconds = shipPosition.distanceTo(currentPosition) /
-      planningSpeedAuPerSec
+if (planningSpeedAuPerSec >= capabilities.minimumPlanningSpeedAuPerSec) {
+  // Seed the iteration with the straight-line travel time to the
+  // current destination position. The iteration then refines against
+  // the curve-resolver on each pass.
+  let candidateSeconds =
+    shipPosition.distanceTo(currentPosition) / planningSpeedAuPerSec
 
-    let converged = false
-    let lastUsableCandidateSeconds: number | null = null
-    let lastUsablePosition: Vector3 | null = null
-    let lastUsableDate: Date | null = null
+  let converged = false
+  let lastUsableCandidateSeconds: number | null = null
+  let lastUsablePosition: Vector3 | null = null
+  let lastUsableDate: Date | null = null
 
-    for (
-      let iteration = 1;
-      iteration <= capabilities.maxInterceptIterations;
-      iteration += 1
-    ) {
-      iterations = iteration
+  for (
+    let iteration = 1;
+    iteration <= capabilities.maxInterceptIterations;
+    iteration += 1
+  ) {
+    iterations = iteration
 
-      const candidateDate = addSeconds(date, candidateSeconds)
-      const candidatePosition = resolveDestinationPosition(
-        destinationId,
-        candidateDate,
-      )
-      const nextSeconds = shipPosition.distanceTo(candidatePosition) /
-        planningSpeedAuPerSec
+    const candidateDate = addSeconds(date, candidateSeconds)
+    const candidatePosition = resolveDestinationPosition(
+      destinationId,
+      candidateDate,
+    )
+    const nextSeconds =
+      shipPosition.distanceTo(candidatePosition) / planningSpeedAuPerSec
 
-      solutionErrorSeconds = Math.abs(nextSeconds - candidateSeconds)
-      lastUsableCandidateSeconds = candidateSeconds
-      lastUsablePosition = candidatePosition.clone()
-      lastUsableDate = candidateDate
+    solutionErrorSeconds = Math.abs(nextSeconds - candidateSeconds)
+    lastUsableCandidateSeconds = candidateSeconds
+    lastUsablePosition = candidatePosition.clone()
+    lastUsableDate = candidateDate
 
-      if (candidateSeconds > maxLookaheadSeconds) {
-        // Past the lookahead horizon. Use the last usable candidate if
-        // we have one; otherwise fall back to no-solution semantics.
-        if (lastUsablePosition && lastUsableCandidateSeconds !== null &&
-            lastUsableCandidateSeconds <= maxLookaheadSeconds) {
-          predictedPosition = lastUsablePosition
-          predictedDate = lastUsableDate
-          interceptTimeSeconds = lastUsableCandidateSeconds
-          status = 'intercept-overrun'
-        } else {
-          status = 'no-solution'
-        }
-        break
-      }
-
-      if (solutionErrorSeconds <= capabilities.interceptConvergenceSeconds) {
-        predictedPosition = candidatePosition.clone()
-        predictedDate = candidateDate
-        interceptTimeSeconds = candidateSeconds
-        aimPosition = candidatePosition.clone()
-        converged = true
-        status = currentPosition.distanceTo(candidatePosition) > MIN_TARGET_MOTION_AU
-          ? 'future-intercept'
-          : 'current-position'
-        break
-      }
-
-      candidateSeconds = nextSeconds
-    }
-
-    if (!converged && iterations === capabilities.maxInterceptIterations) {
-      // Iteration cap reached without convergence. If we have a usable
-      // last candidate, report it as intercept-overrun; otherwise fall
-      // back to lead-chase with a naive ETA estimate.
-      if (lastUsablePosition && lastUsableCandidateSeconds !== null) {
+    if (candidateSeconds > maxLookaheadSeconds) {
+      // Past the lookahead horizon. Use the last usable candidate if
+      // we have one; otherwise fall back to no-solution semantics.
+      if (
+        lastUsablePosition &&
+        lastUsableCandidateSeconds !== null &&
+        lastUsableCandidateSeconds <= maxLookaheadSeconds
+      ) {
         predictedPosition = lastUsablePosition
         predictedDate = lastUsableDate
         interceptTimeSeconds = lastUsableCandidateSeconds
         status = 'intercept-overrun'
       } else {
-        const naiveEtaSeconds = shipPosition.distanceTo(currentPosition) /
-          planningSpeedAuPerSec
-        const leadPosition = currentPosition.clone().addScaledVector(
-          estimatedVelocityAuPerSec,
-          naiveEtaSeconds,
-        )
-        predictedPosition = leadPosition
-        predictedDate = addSeconds(date, naiveEtaSeconds)
-        interceptTimeSeconds = naiveEtaSeconds
-        aimPosition = leadPosition
-        status = 'lead-chase'
+        status = 'no-solution'
       }
+      break
+    }
+
+    if (solutionErrorSeconds <= capabilities.interceptConvergenceSeconds) {
+      predictedPosition = candidatePosition.clone()
+      predictedDate = candidateDate
+      interceptTimeSeconds = candidateSeconds
+      aimPosition = candidatePosition.clone()
+      converged = true
+      status =
+        currentPosition.distanceTo(candidatePosition) > MIN_TARGET_MOTION_AU
+          ? 'future-intercept'
+          : 'current-position'
+      break
+    }
+
+    candidateSeconds = nextSeconds
+  }
+
+  if (!converged && iterations === capabilities.maxInterceptIterations) {
+    // Iteration cap reached without convergence. If we have a usable
+    // last candidate, report it as intercept-overrun; otherwise fall
+    // back to lead-chase with a naive ETA estimate.
+    if (lastUsablePosition && lastUsableCandidateSeconds !== null) {
+      predictedPosition = lastUsablePosition
+      predictedDate = lastUsableDate
+      interceptTimeSeconds = lastUsableCandidateSeconds
+      status = 'intercept-overrun'
+    } else {
+      const naiveEtaSeconds =
+        shipPosition.distanceTo(currentPosition) / planningSpeedAuPerSec
+      const leadPosition = currentPosition
+        .clone()
+        .addScaledVector(estimatedVelocityAuPerSec, naiveEtaSeconds)
+      predictedPosition = leadPosition
+      predictedDate = addSeconds(date, naiveEtaSeconds)
+      interceptTimeSeconds = naiveEtaSeconds
+      aimPosition = leadPosition
+      status = 'lead-chase'
     }
   }
+}
 ```
 
 - [ ] **Step 3: Populate the new `requiredArrivalVelocity` field on the planner result**
@@ -539,6 +545,7 @@ git commit -m "feat(#52): iterative curve-resolved intercept and five-state stat
 ## Task 6: Add unit tests for the new statuses and `requiredArrivalVelocity`
 
 **Files:**
+
 - Modify: `tests/unit/transfer-planner.test.ts`
 
 - [ ] **Step 1: Add a test for `requiredArrivalVelocity`**
@@ -546,31 +553,31 @@ git commit -m "feat(#52): iterative curve-resolved intercept and five-state stat
 In `tests/unit/transfer-planner.test.ts`, append the following test after the `exposes the five-state status enum` test:
 
 ```typescript
-  it('reports the target velocity at the predicted intercept time', () => {
-    const plan = planTransfer({
-      date: BASE_DATE,
-      shipPosition: new Vector3(0, 0, 0),
-      shipVelocity: new Vector3(2, 0, 0),
-      shipForward: new Vector3(1, 0, 0),
-      destinationId: 'runner',
-      resolveDestinationPosition: createLinearResolver({
-        runner: {
-          start: new Vector3(10, 0, 0),
-          velocity: new Vector3(1, 0, 0),
-        },
-      }),
-      shipCapabilities: {
-        targetVelocitySampleSeconds: 1,
-        maxInterceptIterations: 4,
-        interceptConvergenceSeconds: 1e-6,
+it('reports the target velocity at the predicted intercept time', () => {
+  const plan = planTransfer({
+    date: BASE_DATE,
+    shipPosition: new Vector3(0, 0, 0),
+    shipVelocity: new Vector3(2, 0, 0),
+    shipForward: new Vector3(1, 0, 0),
+    destinationId: 'runner',
+    resolveDestinationPosition: createLinearResolver({
+      runner: {
+        start: new Vector3(10, 0, 0),
+        velocity: new Vector3(1, 0, 0),
       },
-    })
-
-    expect(plan.status).toBe('future-intercept')
-    expect(plan.guidance.requiredArrivalVelocity.x).toBeCloseTo(1, 6)
-    expect(plan.guidance.requiredArrivalVelocity.y).toBeCloseTo(0, 6)
-    expect(plan.guidance.requiredArrivalVelocity.z).toBeCloseTo(0, 6)
+    }),
+    shipCapabilities: {
+      targetVelocitySampleSeconds: 1,
+      maxInterceptIterations: 4,
+      interceptConvergenceSeconds: 1e-6,
+    },
   })
+
+  expect(plan.status).toBe('future-intercept')
+  expect(plan.guidance.requiredArrivalVelocity.x).toBeCloseTo(1, 6)
+  expect(plan.guidance.requiredArrivalVelocity.y).toBeCloseTo(0, 6)
+  expect(plan.guidance.requiredArrivalVelocity.z).toBeCloseTo(0, 6)
+})
 ```
 
 - [ ] **Step 2: Add a test for `intercept-overrun`**
@@ -578,34 +585,34 @@ In `tests/unit/transfer-planner.test.ts`, append the following test after the `e
 Append the following test:
 
 ```typescript
-  it('reports intercept-overrun when the target outruns the ship but the solver still returns a last-usable candidate', () => {
-    // The ship is fast enough to reach the target in a straight line,
-    // but the target is moving at a speed that, after the first
-    // candidate date, requires a re-aim past the maximum lookahead.
-    const plan = planTransfer({
-      date: BASE_DATE,
-      shipPosition: new Vector3(0, 0, 0),
-      shipVelocity: new Vector3(0.5, 0, 0),
-      shipForward: new Vector3(1, 0, 0),
-      destinationId: 'fast-runner',
-      resolveDestinationPosition: createLinearResolver({
-        'fast-runner': {
-          start: new Vector3(10, 0, 0),
-          velocity: new Vector3(0.4, 0, 0),
-        },
-      }),
-      shipCapabilities: {
-        targetVelocitySampleSeconds: 1,
-        maxInterceptLookaheadDays: 0.0001, // ~8.64s; intercept will exceed
-        maxInterceptIterations: 4,
-        interceptConvergenceSeconds: 1e-6,
+it('reports intercept-overrun when the target outruns the ship but the solver still returns a last-usable candidate', () => {
+  // The ship is fast enough to reach the target in a straight line,
+  // but the target is moving at a speed that, after the first
+  // candidate date, requires a re-aim past the maximum lookahead.
+  const plan = planTransfer({
+    date: BASE_DATE,
+    shipPosition: new Vector3(0, 0, 0),
+    shipVelocity: new Vector3(0.5, 0, 0),
+    shipForward: new Vector3(1, 0, 0),
+    destinationId: 'fast-runner',
+    resolveDestinationPosition: createLinearResolver({
+      'fast-runner': {
+        start: new Vector3(10, 0, 0),
+        velocity: new Vector3(0.4, 0, 0),
       },
-    })
-
-    expect(plan.status).toBe('intercept-overrun')
-    expect(plan.guidance.aimPosition.x).toBeGreaterThan(0)
-    expect(plan.destination.predictedDate).not.toBeNull()
+    }),
+    shipCapabilities: {
+      targetVelocitySampleSeconds: 1,
+      maxInterceptLookaheadDays: 0.0001, // ~8.64s; intercept will exceed
+      maxInterceptIterations: 4,
+      interceptConvergenceSeconds: 1e-6,
+    },
   })
+
+  expect(plan.status).toBe('intercept-overrun')
+  expect(plan.guidance.aimPosition.x).toBeGreaterThan(0)
+  expect(plan.destination.predictedDate).not.toBeNull()
+})
 ```
 
 - [ ] **Step 3: Add a test for `lead-chase`**
@@ -613,39 +620,39 @@ Append the following test:
 Append the following test:
 
 ```typescript
-  it('reports lead-chase when the solver does not converge and no last-usable candidate is available', () => {
-    // An "oscillating" target causes the iteration to never converge:
-    // the resolver returns different positions at each candidate date
-    // because the linear resolver uses a high velocity that pushes
-    // the next candidate further away than the previous one. We
-    // construct this by using a zero-velocity ship and a non-monotonic
-    // resolver... but the simpler path is a deliberately huge
-    // convergence tolerance and a non-monotonic resolver, so use a
-    // different shape: provide a resolver that returns a wildly
-    // different position at every iteration by making the velocity
-    // very large relative to the planning speed.
-    const plan = planTransfer({
-      date: BASE_DATE,
-      shipPosition: new Vector3(0, 0, 0),
-      shipVelocity: new Vector3(0.1, 0, 0),
-      shipForward: new Vector3(1, 0, 0),
-      destinationId: 'jumper',
-      resolveDestinationPosition: createLinearResolver({
-        jumper: {
-          start: new Vector3(0.05, 0, 0),
-          velocity: new Vector3(1e6, 0, 0), // astronomical
-        },
-      }),
-      shipCapabilities: {
-        targetVelocitySampleSeconds: 1,
-        maxInterceptIterations: 1, // never get a chance to converge
-        interceptConvergenceSeconds: 1e-6,
+it('reports lead-chase when the solver does not converge and no last-usable candidate is available', () => {
+  // An "oscillating" target causes the iteration to never converge:
+  // the resolver returns different positions at each candidate date
+  // because the linear resolver uses a high velocity that pushes
+  // the next candidate further away than the previous one. We
+  // construct this by using a zero-velocity ship and a non-monotonic
+  // resolver... but the simpler path is a deliberately huge
+  // convergence tolerance and a non-monotonic resolver, so use a
+  // different shape: provide a resolver that returns a wildly
+  // different position at every iteration by making the velocity
+  // very large relative to the planning speed.
+  const plan = planTransfer({
+    date: BASE_DATE,
+    shipPosition: new Vector3(0, 0, 0),
+    shipVelocity: new Vector3(0.1, 0, 0),
+    shipForward: new Vector3(1, 0, 0),
+    destinationId: 'jumper',
+    resolveDestinationPosition: createLinearResolver({
+      jumper: {
+        start: new Vector3(0.05, 0, 0),
+        velocity: new Vector3(1e6, 0, 0), // astronomical
       },
-    })
-
-    expect(plan.status).toBe('lead-chase')
-    expect(plan.guidance.aimPosition.x).toBeGreaterThan(0.05)
+    }),
+    shipCapabilities: {
+      targetVelocitySampleSeconds: 1,
+      maxInterceptIterations: 1, // never get a chance to converge
+      interceptConvergenceSeconds: 1e-6,
+    },
   })
+
+  expect(plan.status).toBe('lead-chase')
+  expect(plan.guidance.aimPosition.x).toBeGreaterThan(0.05)
+})
 ```
 
 - [ ] **Step 4: Run the tests**
@@ -666,6 +673,7 @@ git commit -m "test(#52): cover requiredArrivalVelocity, intercept-overrun, and 
 ## Task 7: Add a curve-resolver unit test (Keplerian input)
 
 **Files:**
+
 - Modify: `tests/unit/transfer-planner.test.ts`
 
 - [ ] **Step 1: Add a Keplerian-shaped resolver and a test**
@@ -692,38 +700,38 @@ function createCircularOrbitResolver(
   }
 }
 
-  it('converges on a circular-orbit target using the curve-resolver directly', () => {
-    // Mars-like orbit: ~1.52 AU radius, ~687 day period, phase at 0.
-    const resolver = createCircularOrbitResolver('mars', 1.52, 687, 0)
-    const plan = planTransfer({
-      date: BASE_DATE,
-      shipPosition: new Vector3(1.04, 0, 0), // Earth-ish
-      shipVelocity: new Vector3(0, 0, 0),
-      shipForward: new Vector3(1, 0, 0),
-      destinationId: 'mars',
-      resolveDestinationPosition: resolver,
-      shipCapabilities: {
-        assumedCruiseSpeedAuPerSec: 0.001, // 1 mAU/s, ~86 AU/day
-        targetVelocitySampleSeconds: 1,
-        maxInterceptIterations: 8,
-        interceptConvergenceSeconds: 0.5,
-      },
-    })
-
-    expect(plan.status).toBe('future-intercept')
-    expect(plan.destination.predictedDate).not.toBeNull()
-    if (plan.destination.predictedDate) {
-      // The predicted position must be on the curve at the predicted
-      // date, not the constant-velocity extrapolation.
-      const curvePositionAtPredicted = resolver(
-        'mars',
-        plan.destination.predictedDate,
-      )
-      expect(
-        plan.destination.predictedPosition.distanceTo(curvePositionAtPredicted),
-      ).toBeLessThan(1e-6)
-    }
+it('converges on a circular-orbit target using the curve-resolver directly', () => {
+  // Mars-like orbit: ~1.52 AU radius, ~687 day period, phase at 0.
+  const resolver = createCircularOrbitResolver('mars', 1.52, 687, 0)
+  const plan = planTransfer({
+    date: BASE_DATE,
+    shipPosition: new Vector3(1.04, 0, 0), // Earth-ish
+    shipVelocity: new Vector3(0, 0, 0),
+    shipForward: new Vector3(1, 0, 0),
+    destinationId: 'mars',
+    resolveDestinationPosition: resolver,
+    shipCapabilities: {
+      assumedCruiseSpeedAuPerSec: 0.001, // 1 mAU/s, ~86 AU/day
+      targetVelocitySampleSeconds: 1,
+      maxInterceptIterations: 8,
+      interceptConvergenceSeconds: 0.5,
+    },
   })
+
+  expect(plan.status).toBe('future-intercept')
+  expect(plan.destination.predictedDate).not.toBeNull()
+  if (plan.destination.predictedDate) {
+    // The predicted position must be on the curve at the predicted
+    // date, not the constant-velocity extrapolation.
+    const curvePositionAtPredicted = resolver(
+      'mars',
+      plan.destination.predictedDate,
+    )
+    expect(
+      plan.destination.predictedPosition.distanceTo(curvePositionAtPredicted),
+    ).toBeLessThan(1e-6)
+  }
+})
 ```
 
 - [ ] **Step 2: Run the test**
@@ -744,6 +752,7 @@ git commit -m "test(#52): cover curve-resolved intercept against a circular orbi
 ## Task 8: Add the lead-pursuit blend in `computeAutonomousGuidance`
 
 **Files:**
+
 - Modify: `src/simulation/autonomous-guidance.ts:0-100` (top of the function)
 
 - [ ] **Step 1: Update the import to bring in the new type**
@@ -776,31 +785,28 @@ const LEAD_PURSUIT_FALLBACK_AU = 0.05
 In `src/simulation/autonomous-guidance.ts`, replace the top of `computeAutonomousGuidance` (lines 41–47):
 
 ```typescript
-  const desiredDirection =
-    plannerResult.guidance.direction.lengthSq() > 0
-      ? plannerResult.guidance.direction.clone().normalize()
-      : new Vector3(1, 0, 0)
+const desiredDirection =
+  plannerResult.guidance.direction.lengthSq() > 0
+    ? plannerResult.guidance.direction.clone().normalize()
+    : new Vector3(1, 0, 0)
 ```
 
 with:
 
 ```typescript
-  const leadWeight = computeLeadWeight(
-    plannerResult,
-    plannerCapabilities(plannerResult),
-  )
-  const liveLead = computeLiveLeadPosition(
-    plannerResult,
-    leadWeight,
-  )
-  const blendedAim = plannerResult.guidance.aimPosition
-    .clone()
-    .lerp(liveLead, leadWeight)
-  const effectiveAimOffset = blendedAim.sub(shipState.position)
-  const desiredDirection =
-    effectiveAimOffset.lengthSq() > 0
-      ? effectiveAimOffset.normalize()
-      : new Vector3(1, 0, 0)
+const leadWeight = computeLeadWeight(
+  plannerResult,
+  plannerCapabilities(plannerResult),
+)
+const liveLead = computeLiveLeadPosition(plannerResult, leadWeight)
+const blendedAim = plannerResult.guidance.aimPosition
+  .clone()
+  .lerp(liveLead, leadWeight)
+const effectiveAimOffset = blendedAim.sub(shipState.position)
+const desiredDirection =
+  effectiveAimOffset.lengthSq() > 0
+    ? effectiveAimOffset.normalize()
+    : new Vector3(1, 0, 0)
 ```
 
 - [ ] **Step 4: Add the helper functions at the end of the file**
@@ -832,8 +838,8 @@ function computeLeadWeight(
     return 1
   }
 
-  const fullScale = capabilities?.leadPursuitFullScaleAu ??
-    LEAD_PURSUIT_FALLBACK_AU
+  const fullScale =
+    capabilities?.leadPursuitFullScaleAu ?? LEAD_PURSUIT_FALLBACK_AU
   if (fullScale <= 0) {
     return 0
   }
@@ -854,9 +860,7 @@ function computeLiveLeadPosition(
 
   const remainingSeconds =
     plannerResult.travel.interceptTimeSeconds ??
-    (plannerResult.travel.etaDays
-      ? plannerResult.travel.etaDays * 86_400
-      : 0)
+    (plannerResult.travel.etaDays ? plannerResult.travel.etaDays * 86_400 : 0)
   return plannerResult.destination.currentPosition
     .clone()
     .addScaledVector(
@@ -887,6 +891,7 @@ git commit -m "feat(#52): add distance-based lead-pursuit blend to autonomous gu
 ## Task 9: Add unit tests for the lead-pursuit blend
 
 **Files:**
+
 - Modify: `tests/unit/autonomous-guidance.test.ts`
 
 - [ ] **Step 1: Add a test for the low-motion (static aim dominates) case**
@@ -1043,7 +1048,11 @@ describe('lead-pursuit blend', () => {
 At the top of `tests/unit/autonomous-guidance.test.ts`, the file already imports from `../../src/simulation/autonomous-guidance`. Make sure the new test file's imports include `createInitialShipState` from physics; if not, add it. The exact import line should be:
 
 ```typescript
-import { createInitialShipState, getShipOrientationFromAngles, type ShipState } from '../../src/simulation/physics'
+import {
+  createInitialShipState,
+  getShipOrientationFromAngles,
+  type ShipState,
+} from '../../src/simulation/physics'
 ```
 
 (Adjust if the file already imports these.)
@@ -1066,6 +1075,7 @@ git commit -m "test(#52): cover lead-pursuit blend, intercept-overrun, and lead-
 ## Task 10: Update the formatter to cover the new statuses
 
 **Files:**
+
 - Modify: `src/simulation/formatters.ts:96-105`
 
 - [ ] **Step 1: Add the new cases**
@@ -1126,6 +1136,7 @@ git commit -m "feat(#52): surface intercept-overrun and lead-chase in the HUD fo
 ## Task 11: Update `describePlannerState` in the ControlPanel narrative
 
 **Files:**
+
 - Modify: `src/components/ControlPanel.tsx:153-165`
 
 - [ ] **Step 1: Add the new cases**
@@ -1191,6 +1202,7 @@ git commit -m "feat(#52): surface intercept-overrun and lead-chase in the contro
 ## Task 12: Extract `shouldShowInterceptMarker` in `navigation-visuals`
 
 **Files:**
+
 - Modify: `src/scene/navigation-visuals.ts:0-50`
 
 - [ ] **Step 1: Replace the inline predicate with a named helper**
@@ -1206,8 +1218,7 @@ export type NavigationVisualState = {
   destinationPosition: TransferPlannerResult['destination']['currentPosition']
   aimPosition: TransferPlannerResult['guidance']['aimPosition']
   interceptPosition:
-    | TransferPlannerResult['destination']['predictedPosition']
-    | null
+    TransferPlannerResult['destination']['predictedPosition'] | null
   showInterceptMarker: boolean
 }
 
@@ -1261,6 +1272,7 @@ git commit -m "refactor(#52): extract shouldShowInterceptMarker helper and gate 
 ## Task 13: Add tests for the new marker gating
 
 **Files:**
+
 - Modify: `tests/unit/navigation-visuals.test.ts`
 
 - [ ] **Step 1: Add a new test for the helper**
@@ -1300,11 +1312,30 @@ describe('shouldShowInterceptMarker', () => {
       solver: { iterations: 0, solutionErrorSeconds: null },
     }
 
-    expect(shouldShowInterceptMarker({ ...base, status: 'future-intercept' } as never)).toBe(true)
-    expect(shouldShowInterceptMarker({ ...base, status: 'current-position' } as never)).toBe(false)
-    expect(shouldShowInterceptMarker({ ...base, status: 'intercept-overrun' } as never)).toBe(false)
-    expect(shouldShowInterceptMarker({ ...base, status: 'lead-chase' } as never)).toBe(false)
-    expect(shouldShowInterceptMarker({ ...base, status: 'no-solution' } as never)).toBe(false)
+    expect(
+      shouldShowInterceptMarker({
+        ...base,
+        status: 'future-intercept',
+      } as never),
+    ).toBe(true)
+    expect(
+      shouldShowInterceptMarker({
+        ...base,
+        status: 'current-position',
+      } as never),
+    ).toBe(false)
+    expect(
+      shouldShowInterceptMarker({
+        ...base,
+        status: 'intercept-overrun',
+      } as never),
+    ).toBe(false)
+    expect(
+      shouldShowInterceptMarker({ ...base, status: 'lead-chase' } as never),
+    ).toBe(false)
+    expect(
+      shouldShowInterceptMarker({ ...base, status: 'no-solution' } as never),
+    ).toBe(false)
   })
 })
 ```
@@ -1327,6 +1358,7 @@ git commit -m "test(#52): assert shouldShowInterceptMarker gates on future-inter
 ## Task 14: Update the orchestrator's placeholder planner result
 
 **Files:**
+
 - Modify: `src/hooks/useAutonomousGuidance.ts:80-115`
 
 - [ ] **Step 1: Add the new field to the placeholder**
@@ -1385,6 +1417,7 @@ git commit -m "fix(#52): add requiredArrivalVelocity to the orchestrator placeho
 ## Task 15: Add the Keplerian end-to-end integration test
 
 **Files:**
+
 - Modify: `tests/integration/autonomous-travel-pipeline.test.ts`
 
 - [ ] **Step 1: Add a circular-orbit resolver and a new test**
@@ -1469,7 +1502,9 @@ describe('autonomous travel against a Keplerian (curve-resolved) target', () => 
     }
 
     const liveTarget = resolver('mars', currentSimDate)
-    expect(state.position.distanceTo(liveTarget)).toBeLessThan(initialDistance * 0.05)
+    expect(state.position.distanceTo(liveTarget)).toBeLessThan(
+      initialDistance * 0.05,
+    )
     expect(phase).toBe('arrived')
   })
 })
@@ -1493,6 +1528,7 @@ git commit -m "test(#52): add Keplerian end-to-end integration test"
 ## Task 16: Update ADR 012 to reference ADR 017
 
 **Files:**
+
 - Modify: `docs/ARCHITECTURE/technicaldecisions/012-transfer-planner-intercept-prediction-and-capability-inputs.md`
 
 - [ ] **Step 1: Add a "Status note" section at the end**
@@ -1513,8 +1549,8 @@ introduces:
   `intercept-overrun`, `lead-chase`, `no-solution`)
 - a distance-based lead-pursuit blend in the guidance layer
 
-This ADR remains the architectural source of truth for *why* the
-planner is a separate module and *what* shape its result takes;
+This ADR remains the architectural source of truth for _why_ the
+planner is a separate module and _what_ shape its result takes;
 ADR 017 is the source of truth for the curve-resolved iteration and
 the five-state status.
 ```
@@ -1532,6 +1568,7 @@ git commit -m "docs(#52): add status note to ADR 012 referencing ADR 017"
 ## Task 17: Run the full test suite and confirm green
 
 **Files:**
+
 - (no file changes)
 
 - [ ] **Step 1: Run all tests**
@@ -1554,6 +1591,7 @@ Expected: clean (no new errors; pre-existing warnings are out of scope).
 ## Task 18: Push the branch and open a draft PR
 
 **Files:**
+
 - (no file changes)
 
 - [ ] **Step 1: Push the branch**
@@ -1564,6 +1602,7 @@ Expected: branch created on `origin` and tracking set up.
 - [ ] **Step 2: Open a draft PR referencing #52**
 
 Run:
+
 ```bash
 cd /Users/openclaw/Github/OrbitalTrucker/.worktrees/fix-52-intercept-aim && \
 gh pr create --draft \
@@ -1573,6 +1612,7 @@ gh pr create --draft \
   --body "Closes #52. See docs/superpowers/specs/2026-06-14-fix-52-intercept-aim-real-orbital-mechanics-design.md for the design and docs/superpowers/plans/2026-06-14-fix-52-intercept-aim-real-orbital-mechanics.md for the task-by-task plan." \
   2>&1 | tail -10
 ```
+
 Expected: PR URL printed.
 
 ---

@@ -1,9 +1,5 @@
 export type MissionStatus =
-  | 'available'
-  | 'active'
-  | 'in-transit'
-  | 'completed'
-  | 'failed'
+  'available' | 'active' | 'in-transit' | 'completed' | 'failed'
 
 export type FreightMission = {
   id: string

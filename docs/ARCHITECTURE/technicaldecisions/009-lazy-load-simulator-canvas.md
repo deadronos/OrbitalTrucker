@@ -55,12 +55,12 @@ canvas downloads.
 `vite.config.ts` configures `build.rolldownOptions.output.manualChunks` to
 separate third-party code into stable, cache-friendly chunks:
 
-| Chunk | Contents |
-|---|---|
-| `vendor-react` | `react`, `react-dom` |
-| `vendor-r3f` | `@react-three/fiber`, `@react-three/drei`, `three` |
+| Chunk             | Contents                                             |
+| ----------------- | ---------------------------------------------------- |
+| `vendor-react`    | `react`, `react-dom`                                 |
+| `vendor-r3f`      | `@react-three/fiber`, `@react-three/drei`, `three`   |
 | `SimulatorCanvas` | Scene components, hooks, ephemeris, simulation logic |
-| `index` | App shell, HUD components, simulation types |
+| `index`           | App shell, HUD components, simulation types          |
 
 Keeping vendor code in separate chunks means a UI-only change does not
 invalidate the cached Three.js download, and vice versa.

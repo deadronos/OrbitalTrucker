@@ -42,7 +42,7 @@ describe('getHeliocentricPositionAu — all planets', () => {
   it('Mercury is between 0.30 and 0.48 AU from the Sun', () => {
     const mercury = SOLAR_BODIES.find((b) => b.name === 'Mercury')!
     const r = getHeliocentricPositionAu(mercury, EPOCH).length()
-    expect(r).toBeGreaterThan(0.30)
+    expect(r).toBeGreaterThan(0.3)
     expect(r).toBeLessThan(0.48)
   })
 
@@ -145,7 +145,7 @@ describe('buildOrbitPoints — scene orbit paths', () => {
     const points = buildOrbitPoints(mars, EPOCH, 64)
     for (const pt of points) {
       expect(pt.length()).toBeGreaterThan(1.35)
-      expect(pt.length()).toBeLessThan(1.70)
+      expect(pt.length()).toBeLessThan(1.7)
     }
   })
 

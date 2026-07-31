@@ -68,10 +68,10 @@ pitch += angularVelocity.pitch × Δt          (clamped to ±PITCH_LIMIT_RAD)
 
 ### Assist modes
 
-| Mode | Trigger | Behaviour |
-|------|---------|-----------|
-| **Kill velocity** | `ShipControlInput.brakeTranslation = true` | Fires retro-thrusters; velocity decays toward zero at `TRANSLATION_BRAKE_FACTOR × Δt` per frame |
-| **Kill rotation** | `ShipControlInput.brakeRotation = true` | Fires rotational retro-thrusters; angular velocity decays at `ROTATION_BRAKE_FACTOR × Δt` per frame |
+| Mode                | Trigger                                     | Behaviour                                                                                                           |
+| ------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| **Kill velocity**   | `ShipControlInput.brakeTranslation = true`  | Fires retro-thrusters; velocity decays toward zero at `TRANSLATION_BRAKE_FACTOR × Δt` per frame                     |
+| **Kill rotation**   | `ShipControlInput.brakeRotation = true`     | Fires rotational retro-thrusters; angular velocity decays at `ROTATION_BRAKE_FACTOR × Δt` per frame                 |
 | **Rotation assist** | `ShipState.rotationAssist = true` (default) | When on, auto-damps angular velocity whenever no yaw/pitch command is active; emulates a stability-control computer |
 
 ## Control scheme
@@ -82,13 +82,13 @@ The physics engine itself has no key bindings; the values below are
 **thrust intent fields** on the command object and are populated by
 `computeAutonomousGuidance`, not by the keyboard.
 
-| `ShipControlInput` field | Meaning |
-|--------------------------|---------|
-| `forward` / `right` / `up` | Linear thrust intent on the ship-local axes, range `[-1, 1]` |
-| `yaw` / `pitch` | Rotational thrust intent, range `[-1, 1]` |
-| `boost` | When `true`, linear and rotational thrust use the boosted scalars |
-| `brakeTranslation` | When `true`, retro-thrusters decay linear velocity |
-| `brakeRotation` | When `true`, retro-thrusters decay angular velocity |
+| `ShipControlInput` field   | Meaning                                                           |
+| -------------------------- | ----------------------------------------------------------------- |
+| `forward` / `right` / `up` | Linear thrust intent on the ship-local axes, range `[-1, 1]`      |
+| `yaw` / `pitch`            | Rotational thrust intent, range `[-1, 1]`                         |
+| `boost`                    | When `true`, linear and rotational thrust use the boosted scalars |
+| `brakeTranslation`         | When `true`, retro-thrusters decay linear velocity                |
+| `brakeRotation`            | When `true`, retro-thrusters decay angular velocity               |
 
 The only retained player-facing input is the time-warp keys (`[` / `]`) bound
 in `App.tsx`; all other manual piloting was removed in issue #47.

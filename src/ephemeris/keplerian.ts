@@ -77,8 +77,7 @@ function solveKepler(meanAnomalyRad: number, eccentricity: number): number {
 }
 
 function keplerianPosition(body: SolarBodyDefinition, date: Date): Vector3 {
-  const centuriesSinceJ2000 =
-    (getJulianDate(date) - J2000_JULIAN_DATE) / 36_525
+  const centuriesSinceJ2000 = (getJulianDate(date) - J2000_JULIAN_DATE) / 36_525
   const elements = evaluateSeries(body.elements, centuriesSinceJ2000)
   const meanAnomaly = normalizeRadians(
     elements.meanLongitudeRad - elements.longitudeOfPerihelionRad,
@@ -144,10 +143,8 @@ export class KeplerianEphemerisProvider implements EphemerisProvider {
       const trueAnomaly =
         2 *
         Math.atan2(
-          Math.sqrt(1 + elements.eccentricity) *
-            Math.sin(eccentricAnomaly / 2),
-          Math.sqrt(1 - elements.eccentricity) *
-            Math.cos(eccentricAnomaly / 2),
+          Math.sqrt(1 + elements.eccentricity) * Math.sin(eccentricAnomaly / 2),
+          Math.sqrt(1 - elements.eccentricity) * Math.cos(eccentricAnomaly / 2),
         )
       const orbitalRadius =
         elements.semiMajorAxisAu *

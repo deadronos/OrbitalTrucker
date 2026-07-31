@@ -73,7 +73,9 @@ describe('autonomous travel pipeline (planTransfer → computeAutonomousGuidance
       if (phase === 'arrived') break
     }
 
-    expect(state.position.distanceTo(target)).toBeLessThan(initialDistance * 0.1)
+    expect(state.position.distanceTo(target)).toBeLessThan(
+      initialDistance * 0.1,
+    )
     expect(phase).toBe('arrived')
   })
 
@@ -95,7 +97,9 @@ describe('autonomous travel pipeline (planTransfer → computeAutonomousGuidance
     }
 
     expect(phase).toBe('arrived')
-    expect(state.position.distanceTo(target)).toBeLessThan(initialDistance * 0.01)
+    expect(state.position.distanceTo(target)).toBeLessThan(
+      initialDistance * 0.01,
+    )
   })
 
   it('handles an off-plane target by steering through pitch and yaw', () => {
@@ -117,7 +121,9 @@ describe('autonomous travel pipeline (planTransfer → computeAutonomousGuidance
     }
 
     expect(phase).toBe('arrived')
-    expect(state.position.distanceTo(target)).toBeLessThan(initialDistance * 0.05)
+    expect(state.position.distanceTo(target)).toBeLessThan(
+      initialDistance * 0.05,
+    )
   })
 
   it('the guidance phase transitions follow the expected acquiring → cruising → braking → arrived sequence', () => {
@@ -161,9 +167,9 @@ describe('mission lifecycle with real travel stack', () => {
     expect(isMissionCompleted(mission, 'cruising', mission.destinationId)).toBe(
       false,
     )
-    expect(
-      isMissionCompleted(mission, 'arrived', 'wrong-destination'),
-    ).toBe(false)
+    expect(isMissionCompleted(mission, 'arrived', 'wrong-destination')).toBe(
+      false,
+    )
 
     // Arrival at correct destination: mission IS completed
     expect(isMissionCompleted(mission, 'arrived', mission.destinationId)).toBe(
@@ -350,11 +356,9 @@ describe('autonomous travel against a Keplerian (curve-resolved) target', () => 
       destinationId: 'mars',
       resolveDestinationPosition: resolver,
     })
-    expect([
-      'future-intercept',
-      'intercept-overrun',
-      'lead-chase',
-    ]).toContain(finalPlan.status)
+    expect(['future-intercept', 'intercept-overrun', 'lead-chase']).toContain(
+      finalPlan.status,
+    )
 
     // (c) The ship reached the orbital neighborhood (within 1.5
     // orbit radii of the center). The old code would have aimed at

@@ -33,7 +33,7 @@ describe('Vsop87EphemerisProvider – Earth', () => {
     // At J2000.0 (January 1, 2000 12:00 UTC) the distance should be ≈ 0.983 AU.
     const pos = vsop87.getHeliocentricPositionAu(earth, J2000)
     const r = pos.length()
-    expect(r).toBeGreaterThan(0.980)
+    expect(r).toBeGreaterThan(0.98)
     expect(r).toBeLessThan(0.988)
   })
 

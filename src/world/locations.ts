@@ -10,12 +10,7 @@ import { SOLAR_BODIES, SUN } from '../solar-data'
 type Vector3Tuple = readonly [number, number, number]
 
 export type LocationKind =
-  | 'star'
-  | 'planet'
-  | 'dwarf-planet'
-  | 'moon'
-  | 'colony'
-  | 'station'
+  'star' | 'planet' | 'dwarf-planet' | 'moon' | 'colony' | 'station'
 
 export type LocationPositionSource =
   | { type: 'origin' }

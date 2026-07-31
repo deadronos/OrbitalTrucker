@@ -7,7 +7,10 @@ import {
   getShipOrientationFromAngles,
   stepShipPhysics,
 } from '../../src/simulation/physics'
-import { planTransfer, type TransferPlannerResult } from '../../src/simulation/transfer-planner'
+import {
+  planTransfer,
+  type TransferPlannerResult,
+} from '../../src/simulation/transfer-planner'
 
 describe('computeAutonomousGuidance', () => {
   it('acquires heading before applying cruise thrust', () => {
@@ -128,7 +131,12 @@ describe('computeAutonomousGuidance', () => {
 
 describe('lead-pursuit blend', () => {
   function makeLeadPursuitPlan(overrides: {
-    status: 'current-position' | 'future-intercept' | 'intercept-overrun' | 'lead-chase' | 'no-solution'
+    status:
+      | 'current-position'
+      | 'future-intercept'
+      | 'intercept-overrun'
+      | 'lead-chase'
+      | 'no-solution'
     targetMotion: number
     requiredArrivalVelocity: Vector3
     interceptTimeSeconds: number | null
@@ -238,7 +246,8 @@ describe('autonomous guidance with ship physics', () => {
 
     const target = new Vector3(0.2, 0, 0)
     const initialDistance = state.position.distanceTo(target)
-    let previousPhase: ReturnType<typeof computeAutonomousGuidance>['phase'] | undefined
+    let previousPhase:
+      ReturnType<typeof computeAutonomousGuidance>['phase'] | undefined
 
     for (let step = 0; step < 180; step += 1) {
       const { forward } = getShipOrientationFromAngles(state.yaw, state.pitch)
@@ -268,7 +277,8 @@ describe('autonomous guidance with ship physics', () => {
 
     const target = new Vector3(0.2, 0.05, 0)
     const initialDistance = state.position.distanceTo(target)
-    let previousPhase: ReturnType<typeof computeAutonomousGuidance>['phase'] | undefined
+    let previousPhase:
+      ReturnType<typeof computeAutonomousGuidance>['phase'] | undefined
 
     for (let step = 0; step < 720; step += 1) {
       const { forward } = getShipOrientationFromAngles(state.yaw, state.pitch)
@@ -298,7 +308,8 @@ describe('autonomous guidance with ship physics', () => {
     state.pitch = 0
 
     const target = new Vector3(0.2, 0, 0)
-    let previousPhase: ReturnType<typeof computeAutonomousGuidance>['phase'] | undefined
+    let previousPhase:
+      ReturnType<typeof computeAutonomousGuidance>['phase'] | undefined
     let cruiseBrakeTransitions = 0
     let arrived = false
 
@@ -312,11 +323,7 @@ describe('autonomous guidance with ship physics', () => {
         destinationId: 'target',
         resolveDestinationPosition: () => target.clone(),
       })
-      const guidance = computeAutonomousGuidance(
-        state,
-        plan,
-        previousPhase,
-      )
+      const guidance = computeAutonomousGuidance(state, plan, previousPhase)
 
       if (
         previousPhase &&
@@ -347,7 +354,10 @@ function createPlan(
   bearingAngleDeg: number,
   plannedDistanceAu: number,
 ): TransferPlannerResult {
-  const aimPosition = direction.clone().normalize().multiplyScalar(plannedDistanceAu)
+  const aimPosition = direction
+    .clone()
+    .normalize()
+    .multiplyScalar(plannedDistanceAu)
 
   return {
     destinationId: 'target',
