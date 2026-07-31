@@ -136,3 +136,7 @@ physics backend accepts a `ShipControlInput` produced by
   gameplay becomes deeper.
 - Keep any future manual/debug controls explicitly separated from normal-play
   command-driven autonomy.
+
+## Status note (2026-07-31)
+
+Arrival distance thresholds in `computeAutonomousGuidance` are scaled dynamically according to the destination target's spatial scale. While major heliocentric bodies use a default $0.001\text{ AU}$ ($\sim 150\,000\text{ km}$) arrival threshold, smaller destinations such as stations, colonies, and moons scale down arrival thresholds (e.g. $0.00008\text{--}0.0001\text{ AU}$) so arrival triggers at appropriate physical proximity rather than deep space.

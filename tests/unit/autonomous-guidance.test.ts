@@ -56,8 +56,7 @@ describe('computeAutonomousGuidance', () => {
 
     expect(guidance.phase).toBe('cruising')
     expect(guidance.alignmentErrorDeg).toBeLessThan(0.001)
-    expect(guidance.controls.forward).toBeGreaterThan(0.49)
-    expect(guidance.controls.up).toBeGreaterThan(0.49)
+    expect(guidance.controls.forward).toBeGreaterThan(0.9)
   })
 
   it('tapers cruise thrust as stopping distance approaches remaining range', () => {

@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { act, useEffect } from 'react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { AppShell } from '../../src/App'
 import type { SimulatorCanvasProps } from '../../src/components/SimulatorCanvas'
@@ -195,6 +195,9 @@ describe('AppShell', () => {
 })
 
 describe('freight contract loop', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
   afterEach(() => {
     window.localStorage.clear()
   })

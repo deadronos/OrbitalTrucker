@@ -1,6 +1,34 @@
 export type MissionStatus =
   'available' | 'active' | 'in-transit' | 'completed' | 'failed'
 
+export const COMPLETED_MISSIONS_STORAGE_KEY =
+  'orbitaltrucker.completedMissions'
+
+export function loadCompletedMissionIds(): Set<string> {
+  if (typeof window === 'undefined') return new Set()
+  try {
+    const raw = window.localStorage.getItem(COMPLETED_MISSIONS_STORAGE_KEY)
+    if (!raw) return new Set()
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed)) {
+      return new Set(
+        parsed.filter((id): id is string => typeof id === 'string'),
+      )
+    }
+  } catch {
+    // Return empty set on parse error
+  }
+  return new Set()
+}
+
+export function saveCompletedMissionIds(completedIds: Set<string>): void {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(
+    COMPLETED_MISSIONS_STORAGE_KEY,
+    JSON.stringify(Array.from(completedIds)),
+  )
+}
+
 export type FreightMission = {
   id: string
   title: string

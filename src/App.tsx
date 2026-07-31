@@ -30,6 +30,8 @@ import {
   getMissionById,
   getMissionCatalog,
   getNextMissionStatus,
+  loadCompletedMissionIds,
+  saveCompletedMissionIds,
   type MissionStatus,
 } from './world/missions'
 import { awardCredits, loadCredits, saveCredits } from './world/credits'
@@ -55,11 +57,18 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
   const [timePaused, setTimePaused] = useState(false)
   const [activeMissionId, setActiveMissionId] = useState<string | null>(null)
   const [missionStatus, setMissionStatus] = useState<MissionStatus>('available')
+  const [completedMissionIds, setCompletedMissionIds] = useState<Set<string>>(
+    () => loadCompletedMissionIds(),
+  )
   const [credits, setCredits] = useState<number>(() => loadCredits())
 
   useEffect(() => {
     saveCredits(credits)
   }, [credits])
+
+  useEffect(() => {
+    saveCompletedMissionIds(completedMissionIds)
+  }, [completedMissionIds])
 
   const destinations = useMemo(() => getLocationCatalog(), [])
   const selectedLocation = useMemo(
@@ -122,6 +131,11 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
         setCredits((current) =>
           awardCredits(current, activeMission.rewardCredits),
         )
+        setCompletedMissionIds((current) => {
+          const next = new Set(current)
+          next.add(activeMission.id)
+          return next
+        })
       }
     },
     [missionStatus, activeMissionId, selectedLocationId],
@@ -196,6 +210,7 @@ export function AppShell({ SceneComponent = SimulatorCanvas }: AppShellProps) {
 
         <MissionsPanel
           activeMissionId={activeMissionId}
+          completedMissionIds={completedMissionIds}
           credits={credits}
           missionStatus={missionStatus}
           missions={missionCatalog}

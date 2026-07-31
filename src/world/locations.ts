@@ -263,6 +263,26 @@ export function getLocationMarkerScaleAu(locationId: string): number {
   return location.markerScaleAu
 }
 
+export function getLocationArrivalRadiusAu(locationId: string): number {
+  const location = getLocationById(locationId)
+
+  if (!location) {
+    return 0.001
+  }
+
+  switch (location.kind) {
+    case 'star':
+    case 'planet':
+    case 'dwarf-planet':
+      return 0.001
+    case 'moon':
+      return 0.0003
+    case 'colony':
+    case 'station':
+      return 0.00008
+  }
+}
+
 export function createEphemerisSolarBodyResolver(): SolarBodyPositionResolver {
   return (bodyName, date) => {
     if (bodyName === SUN.name) {

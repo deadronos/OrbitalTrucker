@@ -34,8 +34,10 @@ function SceneContents({
   onMetricsChange,
 }: SimulatorCanvasProps) {
   const controlInputRef = useRef(createIdleShipControls())
-  const { shipStateRef, shipRef, forwardRef, upRef } =
-    useShipPhysics(controlInputRef)
+  const { shipStateRef, shipRef, forwardRef, upRef } = useShipPhysics(
+    controlInputRef,
+    timePaused,
+  )
 
   // Simulation hooks (registered in frame-execution order)
   const { simulatedDateRef, orbitEpoch } = useTimeSimulation(

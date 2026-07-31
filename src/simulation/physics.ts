@@ -86,9 +86,21 @@ export function getShipOrientationFromAngles(
 ): ShipOrientation {
   const lookEuler = new Euler(pitch, yaw, 0, 'YXZ')
   const quaternion = new Quaternion().setFromEuler(lookEuler)
-  const forward = new Vector3(1, 0, 0).applyQuaternion(quaternion)
-  const right = new Vector3(0, 0, -1).applyQuaternion(quaternion)
-  const up = new Vector3(0, 1, 0).applyQuaternion(quaternion)
+
+  const cosPitch = Math.cos(pitch)
+  const sinPitch = Math.sin(pitch)
+  const cosYaw = Math.cos(yaw)
+  const sinYaw = Math.sin(yaw)
+
+  const forward = new Vector3(
+    cosYaw * cosPitch,
+    sinPitch,
+    -sinYaw * cosPitch,
+  ).normalize()
+
+  const right = new Vector3(sinYaw, 0, cosYaw).normalize()
+
+  const up = new Vector3().crossVectors(right, forward).normalize()
 
   return { quaternion, forward, right, up }
 }

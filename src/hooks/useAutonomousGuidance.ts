@@ -147,10 +147,14 @@ function buildPlannerResult(
             return zeroVector
           }
 
-          return (
-            bodyPositions.get(bodyName) ??
-            fallbackSolarBodyResolver(bodyName, bodyDate)
-          )
+          const isCurrentDate =
+            Math.abs(bodyDate.getTime() - simulatedDate.getTime()) < 1000
+
+          if (isCurrentDate && bodyPositions.has(bodyName)) {
+            return bodyPositions.get(bodyName)!
+          }
+
+          return fallbackSolarBodyResolver(bodyName, bodyDate)
         },
       }),
   })

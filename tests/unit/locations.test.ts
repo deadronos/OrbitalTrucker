@@ -4,6 +4,7 @@ import { Vector3 } from 'three'
 import {
   createEphemerisSolarBodyResolver,
   formatLocationKind,
+  getLocationArrivalRadiusAu,
   getLocationById,
   getLocationParent,
   resolveLocationPosition,
@@ -72,5 +73,12 @@ describe('locations', () => {
   it('formats human-readable kind labels for the destination UI', () => {
     expect(formatLocationKind('moon')).toBe('Moon')
     expect(formatLocationKind('dwarf-planet')).toBe('Dwarf planet')
+  })
+
+  it('scales arrival distance thresholds according to location kind', () => {
+    expect(getLocationArrivalRadiusAu('earth')).toBe(0.001)
+    expect(getLocationArrivalRadiusAu('moon')).toBe(0.0003)
+    expect(getLocationArrivalRadiusAu('earth-orbit-freight-ring')).toBe(0.00008)
+    expect(getLocationArrivalRadiusAu('mars-high-port')).toBe(0.00008)
   })
 })

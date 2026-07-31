@@ -150,6 +150,10 @@ architecture before autonomous guidance lands.
 - Replace sampled intercept prediction with higher-fidelity transfer logic once
   the flight model demands it.
 
+## Status note (2026-07-31)
+
+The ephemeris resolver integration in `useAutonomousGuidance` must resolve target solar body positions dynamically at the requested `resolveDate` rather than falling back to cached current-date body positions. Reusing current-date positions causes the transfer planner to evaluate targets as stationary, breaking future intercept prediction for moving planets.
+
 ## Status note (2026-06-14)
 
 The iterative re-solve in §2 and the three-state status in §3 have

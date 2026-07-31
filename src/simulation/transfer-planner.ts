@@ -286,7 +286,6 @@ function estimateTargetVelocity(
     addSeconds(date, sampleSeconds),
   )
 
-  return sampled.sub(current).divideScalar(sampleSeconds)
   return sampled.clone().sub(current).divideScalar(sampleSeconds)
 }
 
@@ -297,7 +296,6 @@ function computeArrivalVelocity(
 ): Vector3 {
   const current = resolveDestinationPosition(destinationId, date)
   const next = resolveDestinationPosition(destinationId, addSeconds(date, 1))
-  return next.sub(current)
   return next.clone().sub(current)
 }
 

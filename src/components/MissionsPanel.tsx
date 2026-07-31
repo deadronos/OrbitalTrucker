@@ -5,6 +5,7 @@ import { Card } from './ui/card'
 type MissionsPanelProps = {
   missions: readonly FreightMission[]
   activeMissionId: string | null
+  completedMissionIds?: ReadonlySet<string>
   missionStatus: MissionStatus
   credits: number
   onAcceptMission: (missionId: string) => void
@@ -13,6 +14,7 @@ type MissionsPanelProps = {
 export function MissionsPanel({
   missions,
   activeMissionId,
+  completedMissionIds,
   missionStatus,
   credits,
   onAcceptMission,
@@ -111,8 +113,9 @@ export function MissionsPanel({
         {missions.map((mission) => {
           const isActive = mission.id === activeMissionId
           const isDone =
-            isActive &&
-            (missionStatus === 'completed' || missionStatus === 'failed')
+            (isActive &&
+              (missionStatus === 'completed' || missionStatus === 'failed')) ||
+            Boolean(completedMissionIds?.has(mission.id))
           // The board is locked only while a contract is in flight. Once
           // the active contract reaches a terminal state (completed /
           // failed) the player must be able to pick a *different*

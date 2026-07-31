@@ -66,6 +66,14 @@ yaw   += angularVelocity.yaw   × Δt
 pitch += angularVelocity.pitch × Δt          (clamped to ±PITCH_LIMIT_RAD)
 ```
 
+The orientation vectors `(forward, right, up)` and quaternion are derived consistently:
+```text
+forward = normalize([cos(yaw) × cos(pitch), sin(pitch), -sin(yaw) × cos(pitch)])
+right   = normalize([sin(yaw), 0, cos(yaw)])
+up      = normalize(cross(right, forward))
+```
+This guarantees that pitch directly controls the vertical component (`sin(pitch)`) of forward thrust across all yaw angles.
+
 ### Assist modes
 
 | Mode                | Trigger                                     | Behaviour                                                                                                           |
